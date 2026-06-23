@@ -1,0 +1,35 @@
+# ===== Python =====
+*.pyc
+*.pyo
+*.egg
+*.egg-info/
+__pycache__/
+.pytest_cache/
+.coverage
+.venv/
+dist/
+build/
+downloads/
+
+# ===== IDE / Editor =====
+.idea/
+.vscode/
+.obsidian/
+.DS_Store
+
+# ===== Node / Frontend =====
+node_modules/
+.nuxt/
+.output/
+.pnpm-store/
+*/.vitepress/cache
+docs/pnpm-lock.yaml
+
+# ===== Project-specific =====
+python/bykcli/web/static
+.workbuddy/
+.data
+book/
+doc_build/
+website/
+target/

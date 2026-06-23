@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+:root {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #333;
+  background-color: #f5f5f5;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+}
+
+/* 统一滚动条样式 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #adadadad;
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #0000007e !important;
+}
+
+/* ---- Component animations & overrides ---- */
+
+/* FileList scrollbar */
+.file-list::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+.file-list-container:hover .file-list::-webkit-scrollbar-thumb {
+  background: #adadad79;
+}
+
+/* ChatTab textarea scrollbar */
+.text-box::-webkit-scrollbar {
+  width: 0px !important;
+  height: 0px !important;
+}
+
+/* PreviewTab hljs override */
+pre code.hljs {
+  padding: 0 !important;
+}
+
+/* Fade-in animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Slide-fade animation (App.tsx) */
+@keyframes slideFadeIn {
+  from { transform: translateX(20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-fade {
+  animation: slideFadeIn 0.3s ease-out;
+}
+
+/* Shake animation (password error) */
+@keyframes shake-x {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-6px); }
+  30% { transform: translateX(6px); }
+  45% { transform: translateX(-5px); }
+  60% { transform: translateX(5px); }
+  75% { transform: translateX(-3px); }
+  90% { transform: translateX(3px); }
+}
+.shake {
+  animation: shake-x 320ms ease-in-out;
+}

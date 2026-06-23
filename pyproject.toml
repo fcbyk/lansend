@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lansend"
+version = "2026.6.23"
+description = "start a local web server for sharing files over LAN"
+requires-python = ">=3.10"
+authors = [
+    {name = "fcbyk", email = "731240932@qq.com"}
+]
+license = {text = "MIT"}
+dependencies = [
+    "byksdk>=0.1.0,<1.0.0",
+    "click>=8.0.0",
+    "flask>=2.0",
+    "pyperclip>=1.9.0",
+    "waitress>=2.0.0",
+    "psutil>=5.9.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = { find = { where = ["src"], include = ["lansend*"] } }
+
+[tool.setuptools.package-data]
+lansend = ["dist/**/*"]
+
+[project.scripts]
+lansend = "lansend.app:lansend"
