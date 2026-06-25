@@ -8,7 +8,7 @@ from typing import Dict, List
 
 from flask import Response, abort, request, stream_with_context
 
-from byksdk import R
+from lansend.internal import R
 from lansend.features.files.service import FileShareService
 
 

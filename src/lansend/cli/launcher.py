@@ -1,7 +1,7 @@
 import threading
 from dataclasses import dataclass
 
-from byksdk import check_port, get_private_networks, open_browser, wait_for_server_ready
+from lansend.internal import check_port, get_private_networks, open_browser, wait_for_server_ready
 
 from lansend.bootstrap import start_web_server
 from lansend.cli.ui import (

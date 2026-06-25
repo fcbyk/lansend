@@ -2,7 +2,7 @@ from typing import Optional
 
 from flask import request
 
-from byksdk import R
+from lansend.internal import R
 from lansend.features.upload.service import UploadService
 
 

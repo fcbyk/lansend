@@ -4,7 +4,7 @@ from typing import Any
 
 import click
 
-from byksdk import copy_to_clipboard, echo_network_urls
+from lansend.internal import copy_to_clipboard, echo_network_urls
 
 
 def prompt_upload_password(ask_password: bool, disable_upload: bool) -> str | None:

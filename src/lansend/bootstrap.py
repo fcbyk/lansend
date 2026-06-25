@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from byksdk import R, create_spa
+from lansend.internal import R, create_spa
 
 from lansend.features.chat.controller import register_routes as register_chat_routes
 from lansend.features.chat.service import ChatService

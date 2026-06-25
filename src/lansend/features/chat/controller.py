@@ -1,6 +1,6 @@
 from flask import request
 
-from byksdk import R
+from lansend.internal import R
 from lansend.features.chat.service import ChatService
 
 
