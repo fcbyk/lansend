@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fcbyk/lansend/internal/config"
@@ -20,6 +21,9 @@ import (
 type Service struct {
 	FileService *files.Service
 	Config      *config.Config
+
+	logMu   sync.Mutex
+	logFile *os.File
 }
 
 type UploadMeta struct {
@@ -315,6 +319,18 @@ func (s *Service) SaveFile(ip string, reader io.Reader, filename string, relPath
 }
 
 func (s *Service) logUpload(ip string, fileCount int, status string, relPath string, fileSize int64) {
+	s.logMu.Lock()
+	defer s.logMu.Unlock()
+
+	if s.logFile == nil {
+		logPath := filepath.Join(s.Config.SharedDirectory, "lansend.log")
+		f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return
+		}
+		s.logFile = f
+	}
+
 	ts := time.Now().Format("2006-01-02 15:04:05")
 	pathStr := "/"
 	if relPath != "" {
@@ -324,10 +340,9 @@ func (s *Service) logUpload(ip string, fileCount int, status string, relPath str
 	if fileSize < 0 {
 		sizeStr = "unknown size"
 	}
-	logMsg := fmt.Sprintf(" [%s] %s upload %d file(s), status: %s, path: %s, size: %s\n",
+	logMsg := fmt.Sprintf("[%s] %s upload %d file(s), status: %s, path: %s, size: %s\n",
 		ts, ip, fileCount, status, pathStr, sizeStr)
-	os.Stderr.WriteString(logMsg)
-	os.Stderr.Sync()
+	s.logFile.WriteString(logMsg)
 }
 
 func randomHex(n int) string {

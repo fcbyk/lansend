@@ -2,11 +2,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "run": "./server/lansend",
+    "dev": "concurrently \"vite\" \"./server/lansend --no-browser\"",
     "build:web": "tsc -b && vite build && cp -r dist/* server/embeddist/dist/",
     "build:server": "cd server && CGO_ENABLED=0 go build -ldflags=\"-s -w\" -o lansend .",
     "build": "pnpm run build:web && pnpm run build:server",
-    "run":"./server/lansend",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -21,6 +21,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^10.0.3",
     "globals": "^17.6.0",
     "tailwindcss": "^4.3.0",
     "typescript": "~6.0.2",
