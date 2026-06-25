@@ -183,7 +183,7 @@ export class FileShareService {
     return filePath
   }
 
-  readFileContent(relativePath: string): FileContent {
+  async readFileContent(relativePath: string): Promise<FileContent> {
     const filePath = this.resolveFilePath(relativePath)
 
     if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
@@ -209,7 +209,7 @@ export class FileShareService {
     }
 
     try {
-      const content = fs.readFileSync(filePath, 'utf-8')
+      const content = await fs.promises.readFile(filePath, 'utf-8')
       if (content.length > maxPreviewBytes) {
         return { is_binary: true, path: relativePath, name: rawName, error: '文件过大，超过 2MB，建议在浏览器打开' }
       }

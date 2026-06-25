@@ -69,7 +69,7 @@ export function registerRoutes(app: import('hono').Hono, service: UploadService)
     if (!uploadId) return error(c, 'upload_id is required', 400)
 
     try {
-      const result = service.completeUpload(uploadId, ip)
+      const result = await service.completeUpload(uploadId, ip)
       return success(c, result, 'file uploaded')
     } catch (e) {
       if (e instanceof Error && e.message === 'upload not found') {
@@ -157,10 +157,13 @@ async function saveFile(
   const filename = FileShareService.safeFilename(file.name || '') || 'untitled'
 
   if (!fs.existsSync(targetDir)) {
-    fs.mkdirSync(targetDir, { recursive: true })
-  } else if (!fs.statSync(targetDir).isDirectory()) {
-    service.fileService.logUpload(ip, 0, `failed (target directory missing: ${relPath || 'root'})`, relPath, fileSize)
-    throw new Error('target directory not found')
+    await fs.promises.mkdir(targetDir, { recursive: true })
+  } else {
+    const stat = fs.statSync(targetDir)
+    if (!stat.isDirectory()) {
+      service.fileService.logUpload(ip, 0, `failed (target directory missing: ${relPath || 'root'})`, relPath, fileSize)
+      throw new Error('target directory not found')
+    }
   }
 
   let finalPath = path.join(targetDir, filename)
@@ -177,11 +180,40 @@ async function saveFile(
     renamed = true
   }
 
-  const arrayBuffer = await file.arrayBuffer()
-  const buffer = Buffer.from(arrayBuffer)
-  fs.writeFileSync(finalPath, buffer)
+  await streamFileToDisk(file.stream(), finalPath)
 
   const resolvedFilename = path.basename(finalPath)
   service.fileService.logUpload(ip, 1, `success (${resolvedFilename})`, relPath, fileSize)
   return { filename: resolvedFilename, renamed }
+}
+
+async function streamFileToDisk(stream: ReadableStream<Uint8Array>, filePath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const writeStream = fs.createWriteStream(filePath)
+    const reader = stream.getReader()
+
+    const pump = async (): Promise<void> => {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) {
+          writeStream.end()
+          break
+        }
+        if (!writeStream.write(Buffer.from(value))) {
+          writeStream.once('drain', () => {})
+        }
+      }
+    }
+
+    writeStream.on('finish', () => {
+      resolve()
+    })
+
+    writeStream.on('error', (err) => {
+      reader.cancel()
+      reject(err)
+    })
+
+    pump().catch(reject)
+  })
 }

@@ -1,5 +1,7 @@
 import path from 'node:path'
 import fs from 'node:fs'
+import crypto from 'node:crypto'
+import mime from 'mime-types'
 import { Hono } from 'hono'
 import { FileShareService } from './services/fileShare.service.js'
 import { UploadService } from './services/upload.service.js'
@@ -11,23 +13,6 @@ import { registerRoutes as registerChatRoutes } from './routes/chat.routes.js'
 import { registerRoutes as registerSpeedtestRoutes } from './routes/speedtest.routes.js'
 import { success } from './utils/response.js'
 
-const MIME_TYPES: Record<string, string> = {
-  '.html': 'text/html; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.js': 'application/javascript; charset=utf-8',
-  '.json': 'application/json',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-  '.ttf': 'font/ttf',
-  '.map': 'application/json',
-}
-
 export function createApp(fileService: FileShareService) {
   const app = new Hono()
 
@@ -35,20 +20,31 @@ export function createApp(fileService: FileShareService) {
   const staticDir = pkgDir
   const entryHtml = 'index.html'
 
-  app.get('/assets/*', (c) => {
+  app.get('/assets/*', async (c) => {
     const assetPath = c.req.path.replace(/^\/assets\//, '')
     const filePath = path.join(staticDir, 'assets', assetPath)
     if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
       return c.notFound()
     }
-    const ext = path.extname(filePath).toLowerCase()
-    const contentType = MIME_TYPES[ext] || 'application/octet-stream'
-    const content = fs.readFileSync(filePath)
+
+    const stat = fs.statSync(filePath)
+    const mtime = stat.mtime.toUTCString()
+    const etag = `"${crypto.createHash('md5').update(`${mtime}:${stat.size}`).digest('hex')}"`
+
+    const ifNoneMatch = c.req.header('If-None-Match')
+    if (ifNoneMatch === etag) {
+      return new Response(null, { status: 304 })
+    }
+
+    const contentType = mime.lookup(filePath) || 'application/octet-stream'
+    const stream = fs.createReadStream(filePath)
     const headers = new Headers({
       'Content-Type': contentType,
-      'Cache-Control': 'public, max-age=31536000',
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'ETag': etag,
+      'Last-Modified': mtime,
     })
-    return new Response(content, { headers })
+    return new Response(stream as any, { headers })
   })
 
   app.get('/api/config', (c) => {
@@ -71,32 +67,32 @@ export function createApp(fileService: FileShareService) {
 
   registerSpeedtestRoutes(app)
 
-  app.get('/', (c) => {
+  app.get('/', async (c) => {
     const htmlPath = path.join(staticDir, entryHtml)
     if (fs.existsSync(htmlPath)) {
-      const html = fs.readFileSync(htmlPath, 'utf-8')
+      const stream = fs.createReadStream(htmlPath)
       const headers = new Headers({
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
         'Expires': '0',
       })
-      return new Response(html, { headers })
+      return new Response(stream as any, { headers })
     }
     return c.notFound()
   })
 
-  app.get('/*', (c) => {
+  app.get('/*', async (c) => {
     const htmlPath = path.join(staticDir, entryHtml)
     if (fs.existsSync(htmlPath)) {
-      const html = fs.readFileSync(htmlPath, 'utf-8')
+      const stream = fs.createReadStream(htmlPath)
       const headers = new Headers({
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
         'Expires': '0',
       })
-      return new Response(html, { headers })
+      return new Response(stream as any, { headers })
     }
     return c.notFound()
   })

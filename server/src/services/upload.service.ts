@@ -89,7 +89,12 @@ export class UploadService {
       renamed,
       created_at: new Date().toISOString(),
     }
-    fs.writeFileSync(path.join(uploadDir, 'meta.json'), JSON.stringify(meta, null, 2), 'utf-8')
+    const metaPath = path.join(uploadDir, 'meta.json')
+    fs.writeFile(metaPath, JSON.stringify(meta, null, 2), 'utf-8', (err) => {
+      if (err) {
+        process.stderr.write(`Failed to write upload meta: ${err.message}\n`)
+      }
+    })
 
     return {
       upload_id: uploadId,
@@ -148,13 +153,13 @@ export class UploadService {
     })
   }
 
-  completeUpload(uploadId: string, ip: string) {
+  async completeUpload(uploadId: string, ip: string): Promise<{ filename: string; renamed: boolean }> {
     const { uploadDir, metaPath } = this.chunkPaths(uploadId)
     if (!fs.existsSync(metaPath)) {
       throw new Error('upload not found')
     }
 
-    const meta: UploadMeta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'))
+    const meta: UploadMeta = await fs.promises.readFile(metaPath, 'utf-8').then(JSON.parse)
     const totalChunks = meta.total_chunks
     const finalPath = meta.final_path
     const filename = meta.filename
@@ -175,14 +180,8 @@ export class UploadService {
     }
 
     try {
-      fs.mkdirSync(path.dirname(finalPath), { recursive: true })
-      const outStream = fs.createWriteStream(finalPath)
-      for (let i = 0; i < totalChunks; i++) {
-        const chunkPath = path.join(uploadDir, `chunk_${String(i).padStart(8, '0')}.part`)
-        const buf = fs.readFileSync(chunkPath)
-        outStream.write(buf)
-      }
-      outStream.end()
+      await fs.promises.mkdir(path.dirname(finalPath), { recursive: true })
+      await this.mergeChunksWithStreams(uploadDir, totalChunks, finalPath)
     } catch (e) {
       this.fileService.logUpload(ip, 1, `failed (merge failed: ${e})`, relPath, size)
       throw new Error('failed to merge file')
@@ -191,6 +190,53 @@ export class UploadService {
     this.abortUpload(uploadId)
     this.fileService.logUpload(ip, 1, `success (${filename})`, relPath, size)
     return { filename, renamed }
+  }
+
+  private mergeChunksWithStreams(uploadDir: string, totalChunks: number, finalPath: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const outStream = fs.createWriteStream(finalPath)
+
+      let currentIndex = 0
+
+      const processNextChunk = () => {
+        if (currentIndex >= totalChunks) {
+          outStream.end()
+          return
+        }
+
+        const chunkPath = path.join(uploadDir, `chunk_${String(currentIndex).padStart(8, '0')}.part`)
+        const inStream = fs.createReadStream(chunkPath)
+
+        inStream.on('data', (chunk) => {
+          if (!outStream.write(chunk)) {
+            inStream.pause()
+            outStream.once('drain', () => {
+              inStream.resume()
+            })
+          }
+        })
+
+        inStream.on('end', () => {
+          currentIndex++
+          processNextChunk()
+        })
+
+        inStream.on('error', (err) => {
+          outStream.destroy(err)
+          reject(err)
+        })
+      }
+
+      outStream.on('finish', () => {
+        resolve()
+      })
+
+      outStream.on('error', (err) => {
+        reject(err)
+      })
+
+      processNextChunk()
+    })
   }
 
   abortUpload(uploadId: string): void {

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import path from 'node:path'
 import fs from 'node:fs'
-import { exec } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { createConfig } from './utils/config.js'
 import { getPrivateNetworks, ensurePortAvailable } from './utils/network.js'
 import { startWebServer } from './app.js'
@@ -186,19 +186,20 @@ async function copyUrlToClipboard(url: string): Promise<void> {
 async function openBrowser(url: string): Promise<void> {
   const platform = process.platform
   let cmd: string
+  let args: string[]
   if (platform === 'darwin') {
-    cmd = `open "${url}"`
+    cmd = 'open'
+    args = [url]
   } else if (platform === 'win32') {
-    cmd = `start "" "${url}"`
+    cmd = 'cmd'
+    args = ['/c', 'start', '""', url]
   } else {
-    cmd = `xdg-open "${url}"`
+    cmd = 'xdg-open'
+    args = [url]
   }
   try {
-    exec(cmd, (err) => {
-      if (err) {
-        console.log(`  Warning: Could not open browser automatically`)
-      }
-    })
+    const child = spawn(cmd, args, { detached: true, stdio: 'ignore' })
+    child.unref()
   } catch {
     console.log(`  Warning: Could not open browser automatically`)
   }

@@ -1,39 +1,97 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import os from 'node:os'
+import crypto from 'node:crypto'
 import archiver from 'archiver'
+import mime from 'mime-types'
 import type { Hono } from 'hono'
 import { success, error } from '../utils/response.js'
 import { FileShareService } from '../services/fileShare.service.js'
 
 function getMimeType(filePath: string): string {
-  const ext = path.extname(filePath).toLowerCase()
-  const mimeTypes: Record<string, string> = {
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.png': 'image/png',
-    '.gif': 'image/gif',
-    '.webp': 'image/webp',
-    '.svg': 'image/svg+xml',
-    '.bmp': 'image/bmp',
-    '.tiff': 'image/tiff',
-    '.tif': 'image/tiff',
-    '.mp4': 'video/mp4',
-    '.webm': 'video/webm',
-    '.ogg': 'video/ogg',
-    '.mov': 'video/quicktime',
-    '.avi': 'video/x-msvideo',
-    '.mkv': 'video/x-matroska',
-    '.m4v': 'video/x-m4v',
+  return mime.lookup(filePath) || 'application/octet-stream'
+}
+
+function getCacheHeaders(filePath: string): Headers {
+  const stat = fs.statSync(filePath)
+  const mtime = stat.mtime.toUTCString()
+  const size = stat.size
+  const etag = `"${crypto.createHash('md5').update(`${mtime}:${size}`).digest('hex')}"`
+
+  const headers = new Headers()
+  headers.set('ETag', etag)
+  headers.set('Last-Modified', mtime)
+
+  const isImmutable = (fileName: string) => /^index-[a-zA-Z0-9]+\.(js|css)$/.test(fileName)
+  if (isImmutable(path.basename(filePath))) {
+    headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+  } else {
+    headers.set('Cache-Control', 'no-cache')
   }
-  return mimeTypes[ext] || 'application/octet-stream'
+
+  return headers
+}
+
+function checkNotModified(c: any, filePath: string): Response | null {
+  const stat = fs.statSync(filePath)
+  const mtime = stat.mtime.toUTCString()
+  const size = stat.size
+  const etag = `"${crypto.createHash('md5').update(`${mtime}:${size}`).digest('hex')}"`
+
+  const ifNoneMatch = c.req.header('If-None-Match')
+  if (ifNoneMatch === etag) {
+    return new Response(null, { status: 304 })
+  }
+
+  const ifModifiedSince = c.req.header('If-Modified-Since')
+  if (ifModifiedSince && !ifNoneMatch) {
+    const ims = new Date(ifModifiedSince).getTime()
+    const lm = stat.mtime.getTime()
+    if (ims >= lm) {
+      return new Response(null, { status: 304 })
+    }
+  }
+
+  return null
+}
+
+interface RangeInfo {
+  start: number
+  end: number
+  size: number
+}
+
+function parseRange(rangeHeader: string | undefined, fileSize: number): RangeInfo | null {
+  if (!rangeHeader) return null
+
+  const match = rangeHeader.match(/bytes=(\d*)-(\d*)/)
+  if (!match) return null
+
+  const rawStart = match[1]
+  const rawEnd = match[2]
+
+  let start: number
+  let end: number
+
+  if (rawStart === '' && rawEnd !== '') {
+    end = fileSize - 1
+    start = Math.max(0, fileSize - parseInt(rawEnd, 10))
+  } else {
+    start = rawStart ? parseInt(rawStart, 10) : 0
+    end = rawEnd ? parseInt(rawEnd, 10) : fileSize - 1
+  }
+
+  if (start >= fileSize || end >= fileSize || start > end) {
+    return null
+  }
+
+  return { start, end, size: fileSize }
 }
 
 export function registerRoutes(app: Hono, service: FileShareService) {
-  app.get('/api/file/:filename{.*}', (c) => {
+  app.get('/api/file/:filename{.*}', async (c) => {
     try {
       const filename = c.req.param('filename')
-      const data = service.readFileContent(filename)
+      const data = await service.readFileContent(filename)
       return success(c, data)
     } catch (e) {
       if (e instanceof Error) {
@@ -81,52 +139,50 @@ export function registerRoutes(app: Hono, service: FileShareService) {
         return c.notFound()
       }
 
+      const notModified = checkNotModified(c, filePath)
+      if (notModified) return notModified
+
       const fileSize = fs.statSync(filePath).size
-      const rangeHeader = c.req.header('Range')
-      let start = 0
-      let end = fileSize - 1
       const contentType = getMimeType(filePath)
+      const range = parseRange(c.req.header('Range'), fileSize)
       const isMedia = contentType.startsWith('video/') || contentType.startsWith('audio/')
       const maxMediaChunk = 512 * 1024
 
-      if (rangeHeader || isMedia) {
-        const effectiveRange = rangeHeader || 'bytes=0-'
-        const match = effectiveRange.match(/bytes=(\d+)-(\d*)/)
-        if (match) {
-          start = parseInt(match[1], 10)
-          end = match[2] ? parseInt(match[2], 10) : fileSize - 1
+      if (range) {
+        let { start, end } = range
 
-          if (start >= fileSize || end >= fileSize) {
-            return new Response('Requested Range Not Satisfiable', {
-              status: 416,
-              headers: { 'Content-Range': `bytes */${fileSize}` },
-            })
-          }
-
-          if (isMedia) {
-            end = Math.min(end, start + maxMediaChunk - 1)
-          }
-
-          const length = end - start + 1
-          const headers = new Headers({
-            'Content-Type': contentType,
-            'Content-Length': String(length),
-            'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-            'Accept-Ranges': 'bytes',
-            'Cache-Control': 'no-cache',
-          })
-
-          const stream = fs.createReadStream(filePath, { start, end })
-          return new Response(stream as any, { status: 206, headers })
+        if (isMedia) {
+          end = Math.min(end, start + maxMediaChunk - 1)
         }
+
+        const length = end - start + 1
+        const headers = getCacheHeaders(filePath)
+        headers.set('Content-Type', contentType)
+        headers.set('Content-Length', String(length))
+        headers.set('Content-Range', `bytes ${start}-${end}/${fileSize}`)
+        headers.set('Accept-Ranges', 'bytes')
+
+        const stream = fs.createReadStream(filePath, { start, end })
+        return new Response(stream as any, { status: 206, headers })
       }
 
-      const headers = new Headers({
-        'Content-Type': contentType,
-        'Content-Length': String(fileSize),
-        'Accept-Ranges': 'bytes',
-        'Cache-Control': 'no-cache',
-      })
+      if (isMedia) {
+        const end = Math.min(fileSize - 1, maxMediaChunk - 1)
+        const length = end + 1
+        const headers = getCacheHeaders(filePath)
+        headers.set('Content-Type', contentType)
+        headers.set('Content-Length', String(length))
+        headers.set('Content-Range', `bytes 0-${end}/${fileSize}`)
+        headers.set('Accept-Ranges', 'bytes')
+
+        const stream = fs.createReadStream(filePath, { start: 0, end })
+        return new Response(stream as any, { status: 206, headers })
+      }
+
+      const headers = getCacheHeaders(filePath)
+      headers.set('Content-Type', contentType)
+      headers.set('Content-Length', String(fileSize))
+      headers.set('Accept-Ranges', 'bytes')
 
       return new Response(fs.createReadStream(filePath) as any, { headers })
     } catch {
@@ -142,6 +198,9 @@ export function registerRoutes(app: Hono, service: FileShareService) {
         return c.notFound()
       }
 
+      const notModified = checkNotModified(c, filePath)
+      if (notModified) return notModified
+
       const fileSize = fs.statSync(filePath).size
       const rawName = path.basename(filePath)
       const safeNameUtf8 = encodeURIComponent(rawName)
@@ -151,13 +210,27 @@ export function registerRoutes(app: Hono, service: FileShareService) {
         fallbackName = ext ? `download${ext}` : 'download'
       }
 
-      const headers = new Headers({
-        'Content-Type': 'application/octet-stream',
-        'Content-Length': String(fileSize),
-        'Content-Disposition': `attachment; filename="${fallbackName}"; filename*=UTF-8''${safeNameUtf8}`,
-        'Accept-Ranges': 'bytes',
-        'Cache-Control': 'no-cache',
-      })
+      const range = parseRange(c.req.header('Range'), fileSize)
+
+      if (range) {
+        const { start, end } = range
+        const length = end - start + 1
+        const headers = getCacheHeaders(filePath)
+        headers.set('Content-Type', 'application/octet-stream')
+        headers.set('Content-Length', String(length))
+        headers.set('Content-Range', `bytes ${start}-${end}/${fileSize}`)
+        headers.set('Content-Disposition', `attachment; filename="${fallbackName}"; filename*=UTF-8''${safeNameUtf8}`)
+        headers.set('Accept-Ranges', 'bytes')
+
+        const stream = fs.createReadStream(filePath, { start, end })
+        return new Response(stream as any, { status: 206, headers })
+      }
+
+      const headers = getCacheHeaders(filePath)
+      headers.set('Content-Type', 'application/octet-stream')
+      headers.set('Content-Length', String(fileSize))
+      headers.set('Content-Disposition', `attachment; filename="${fallbackName}"; filename*=UTF-8''${safeNameUtf8}`)
+      headers.set('Accept-Ranges', 'bytes')
 
       return new Response(fs.createReadStream(filePath) as any, { headers })
     } catch {
@@ -173,7 +246,6 @@ export function registerRoutes(app: Hono, service: FileShareService) {
         return error(c, 'paths required', 400)
       }
 
-      const base = service.ensureSharedDirectory()
       const items: { rel: string; abs: string }[] = []
 
       for (const raw of paths) {
@@ -193,33 +265,6 @@ export function registerRoutes(app: Hono, service: FileShareService) {
         items.push({ rel: relPath, abs: absPath })
       }
 
-      const tempPath = path.join(os.tmpdir(), `lansend_${Date.now()}_${Math.random().toString(36).slice(2)}.zip`)
-
-      await new Promise<void>((resolve, reject) => {
-        const output = fs.createWriteStream(tempPath)
-        const archive = archiver('zip', { zlib: { level: 9 } })
-        archive.pipe(output)
-
-        const arcnameSet = new Set<string>()
-
-        for (const item of items) {
-          if (fs.statSync(item.abs).isDirectory()) {
-            archive.directory(item.abs, item.rel)
-          } else {
-            const arcname = item.rel.replace(/\\/g, '/')
-            if (!arcnameSet.has(arcname)) {
-              arcnameSet.add(arcname)
-              archive.file(item.abs, { name: arcname })
-            }
-          }
-        }
-
-        output.on('close', resolve)
-        output.on('error', reject)
-        archive.finalize()
-      })
-
-      const fileSize = fs.statSync(tempPath).size
       let zipName: string
       if (items.length === 1) {
         const baseName = path.basename(items[0].rel.replace(/\/+$/, '')) || 'download'
@@ -235,19 +280,44 @@ export function registerRoutes(app: Hono, service: FileShareService) {
         fallbackName = ext ? `download${ext}` : 'download.zip'
       }
 
+      const { readable, writable } = new TransformStream()
+      const writer = writable.getWriter()
+
+      const archive = archiver('zip', { zlib: { level: 9 } })
+
+      archive.on('data', (chunk: Buffer) => {
+        writer.write(chunk)
+      })
+
+      archive.on('end', () => {
+        writer.close()
+      })
+
+      archive.on('error', (err) => {
+        writer.abort(err)
+      })
+
+      const arcnameSet = new Set<string>()
+      for (const item of items) {
+        if (fs.statSync(item.abs).isDirectory()) {
+          archive.directory(item.abs, item.rel)
+        } else {
+          const arcname = item.rel.replace(/\\/g, '/')
+          if (!arcnameSet.has(arcname)) {
+            arcnameSet.add(arcname)
+            archive.file(item.abs, { name: arcname })
+          }
+        }
+      }
+      archive.finalize()
+
       const headers = new Headers({
         'Content-Type': 'application/zip',
-        'Content-Length': String(fileSize),
         'Content-Disposition': `attachment; filename="${fallbackName}"; filename*=UTF-8''${safeNameUtf8}`,
         'Cache-Control': 'no-cache',
       })
 
-      const stream = fs.createReadStream(tempPath)
-      stream.on('close', () => {
-        try { fs.unlinkSync(tempPath) } catch { /* ignore */ }
-      })
-
-      return new Response(stream as any, { headers })
+      return new Response(readable as any, { headers })
     } catch (e) {
       return error(c, e instanceof Error ? e.message : 'unknown error', 500)
     }
