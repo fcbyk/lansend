@@ -189,6 +189,23 @@ func sortFileTreeItems(items []FileTreeItem) {
 	}
 }
 
+func sortDirectoryItems(items []DirectoryItem) {
+	for i := 0; i < len(items); i++ {
+		for j := i + 1; j < len(items); j++ {
+			aDir, bDir := items[i].IsDir, items[j].IsDir
+			if aDir != bDir {
+				if !aDir && bDir {
+					items[i], items[j] = items[j], items[i]
+				}
+				continue
+			}
+			if strings.ToLower(items[i].Name) > strings.ToLower(items[j].Name) {
+				items[i], items[j] = items[j], items[i]
+			}
+		}
+	}
+}
+
 type DirectoryItem struct {
 	Name  string `json:"name"`
 	Path  string `json:"path"`
@@ -240,6 +257,8 @@ func (s *Service) GetDirectoryListing(relativePath string) (*DirectoryListing, e
 			IsDir: entry.IsDir(),
 		})
 	}
+
+	sortDirectoryItems(items)
 
 	shareName := filepath.Base(base)
 	if shareName == "" || shareName == "." {
