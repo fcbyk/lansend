@@ -138,9 +138,8 @@ func checkPort(port int) bool {
 
 func run(cmd *cobra.Command, args []string) {
 	if directory == "" {
-		exePath, err := os.Executable()
-		if err == nil {
-			directory = filepath.Dir(exePath)
+		if wd, err := os.Getwd(); err == nil {
+			directory = wd
 		} else {
 			directory = "."
 		}

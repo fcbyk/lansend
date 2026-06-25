@@ -1,6 +1,8 @@
 package upload
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -87,7 +89,6 @@ func (s *Service) InitUpload(
 
 	targetDir, err := s.FileService.AbsTargetDir(relPath)
 	if err != nil {
-		s.FileService.Config = s.Config
 		s.logUpload(ip, 0, "failed (shared directory not set)", relPath, size)
 		return nil, err
 	}
@@ -277,16 +278,13 @@ func (s *Service) SaveFile(ip string, reader io.Reader, filename string, relPath
 		safeFilename = "untitled"
 	}
 
-	info, err := os.Stat(targetDir)
-	if err != nil {
-		relLabel := relPath
-		if relLabel == "" {
-			relLabel = "root"
-		}
-		s.logUpload(ip, 0, fmt.Sprintf("failed (target directory missing: %s)", relLabel), relPath, fileSize)
-		return nil, fmt.Errorf("target directory not found")
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		s.logUpload(ip, 0, fmt.Sprintf("failed (create directory failed: %s)", err.Error()), relPath, fileSize)
+		return nil, fmt.Errorf("failed to create target directory")
 	}
-	if !info.IsDir() {
+
+	info, err := os.Stat(targetDir)
+	if err != nil || !info.IsDir() {
 		relLabel := relPath
 		if relLabel == "" {
 			relLabel = "root"
@@ -334,10 +332,10 @@ func (s *Service) logUpload(ip string, fileCount int, status string, relPath str
 
 func randomHex(n int) string {
 	b := make([]byte, n/2)
-	for i := range b {
-		b[i] = byte(time.Now().UnixNano()>>uint(i*8)) ^ byte(os.Getpid())
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
 	}
-	return fmt.Sprintf("%x", b)
+	return hex.EncodeToString(b)
 }
 
 func tryInt(s string) (int64, bool) {

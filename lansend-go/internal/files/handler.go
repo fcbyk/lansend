@@ -240,59 +240,6 @@ func RegisterRoutes(mux *http.ServeMux, svc *Service) {
 			items = append(items, item{rel: relPath, abs: absPath})
 		}
 
-		tmpFile, err := os.CreateTemp("", "lansend-*.zip")
-		if err != nil {
-			response.Error(w, 500, "failed to create temp file")
-			return
-		}
-		tmpPath := tmpFile.Name()
-		defer os.Remove(tmpPath)
-
-		zw := zip.NewWriter(tmpFile)
-		arcnameSet := make(map[string]bool)
-
-		for _, it := range items {
-			info, err := os.Stat(it.abs)
-			if err != nil {
-				continue
-			}
-			if info.IsDir() {
-				filepath.Walk(it.abs, func(fullPath string, fi os.FileInfo, err error) error {
-					if err != nil || fi.IsDir() {
-						return nil
-					}
-					arcname, _ := filepath.Rel(base, fullPath)
-					arcname = strings.ReplaceAll(arcname, "\\", "/")
-					if arcnameSet[arcname] {
-						return nil
-					}
-					arcnameSet[arcname] = true
-					w, _ := zw.Create(arcname)
-					f, _ := os.Open(fullPath)
-					if f != nil {
-						io.Copy(w, f)
-						f.Close()
-					}
-					return nil
-				})
-			} else {
-				arcname := strings.ReplaceAll(it.rel, "\\", "/")
-				if arcnameSet[arcname] {
-					continue
-				}
-				arcnameSet[arcname] = true
-				w, _ := zw.Create(arcname)
-				f, _ := os.Open(it.abs)
-				if f != nil {
-					io.Copy(w, f)
-					f.Close()
-				}
-			}
-		}
-		zw.Close()
-		tmpFile.Close()
-
-		fileSize, _ := os.Stat(tmpPath)
 		var zipName string
 		if len(items) == 1 {
 			baseName := filepath.Base(strings.TrimRight(items[0].rel, "/"))
@@ -322,27 +269,67 @@ func RegisterRoutes(mux *http.ServeMux, svc *Service) {
 		}
 
 		w.Header().Set("Content-Type", "application/zip")
-		w.Header().Set("Content-Length", strconv.FormatInt(fileSize.Size(), 10))
 		w.Header().Set("Content-Disposition",
 			fmt.Sprintf(`attachment; filename="%s"; filename*=UTF-8''%s`, fallbackName, safeNameUTF8))
 		w.Header().Set("Cache-Control", "no-cache")
 
-		f, err := os.Open(tmpPath)
-		if err != nil {
-			response.Error(w, 500, "failed to read zip")
-			return
-		}
-		defer f.Close()
+		pr, pw := io.Pipe()
+		go func() {
+			zw := zip.NewWriter(pw)
+			arcnameSet := make(map[string]bool)
 
-		buf := make([]byte, 8192)
-		for {
-			n, err := f.Read(buf)
-			if n > 0 {
-				w.Write(buf[:n])
+			addFileToZip := func(zw *zip.Writer, arcname, fullPath string) error {
+				if arcnameSet[arcname] {
+					return nil
+				}
+				arcnameSet[arcname] = true
+				f, err := os.Open(fullPath)
+				if err != nil {
+					return nil
+				}
+				defer f.Close()
+				fi, err := f.Stat()
+				if err != nil {
+					return nil
+				}
+				fh, err := zip.FileInfoHeader(fi)
+				if err != nil {
+					return nil
+				}
+				fh.Name = arcname
+				fh.Method = zip.Deflate
+				w, err := zw.CreateHeader(fh)
+				if err != nil {
+					return nil
+				}
+				io.Copy(w, f)
+				return nil
 			}
-			if err != nil {
-				break
+
+			for _, it := range items {
+				info, err := os.Stat(it.abs)
+				if err != nil {
+					continue
+				}
+				if info.IsDir() {
+					filepath.Walk(it.abs, func(fullPath string, fi os.FileInfo, err error) error {
+						if err != nil || fi.IsDir() {
+							return nil
+						}
+						arcname, _ := filepath.Rel(base, fullPath)
+						arcname = strings.ReplaceAll(arcname, "\\", "/")
+						addFileToZip(zw, arcname, fullPath)
+						return nil
+					})
+				} else {
+					arcname := strings.ReplaceAll(it.rel, "\\", "/")
+					addFileToZip(zw, arcname, it.abs)
+				}
 			}
-		}
+			zw.Close()
+			pw.Close()
+		}()
+
+		io.Copy(w, pr)
 	})
 }

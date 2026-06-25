@@ -37,7 +37,7 @@ func (s *Store) AddMessage(msg Message) Message {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	msg.ID = len(s.messages) + 1
-	msg.Timestamp = time.Now().Format(time.RFC3339)
+	msg.Timestamp = time.Now().Format("2006-01-02T15:04:05.000000")
 	s.messages = append(s.messages, msg)
 	if len(s.messages) > s.limit {
 		s.messages = s.messages[1:]

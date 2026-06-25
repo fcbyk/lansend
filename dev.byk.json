@@ -2,5 +2,6 @@
   "test": "pytest -q",
   "build": "python3 -m build",
   "check": "twine check dist/*",
-  "upload": "twine upload dist/*"
+  "upload": "twine upload dist/*",
+  "go":"cd lansend-go && CGO_ENABLED=0 go build -ldflags=\"-s -w\" -o lansend ."
 }

@@ -1,8 +1,6 @@
 package speedtest
 
 import (
-	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 
@@ -70,9 +68,4 @@ func RegisterRoutes(mux *http.ServeMux) {
 
 		response.SuccessMsg(w, "upload test complete", nil)
 	})
-}
-
-func init() {
-	_ = fmt.Sprintf
-	_ = io.EOF
 }

@@ -144,8 +144,21 @@ func RegisterRoutes(mux *http.ServeMux, svc *Service) {
 		relPath := strings.Trim(r.FormValue("path"), "/")
 
 		password := r.FormValue("password")
+
+		if _, _, err := r.FormFile("file"); err != nil && password != "" {
+			if ok, msg := svc.VerifyPassword(password); !ok {
+				response.Error(w, 401, msg)
+				return
+			}
+			if svc.Config.UploadPassword != "" {
+				response.SuccessMsg(w, "password ok", nil)
+				return
+			}
+			response.Error(w, 400, "upload password not set")
+			return
+		}
+
 		if ok, msg := svc.VerifyPassword(password); !ok {
-			svc.FileService.Config = svc.Config
 			svc.logUpload(ip, 0, "failed (wrong or missing password)", relPath, 0)
 			response.Error(w, 401, msg)
 			return
