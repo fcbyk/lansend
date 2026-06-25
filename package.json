@@ -1,12 +1,11 @@
 {
-  "name": "ui",
   "private": true,
-  "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && rm -rf ../src/lansend/dist && mv dist ../src/lansend/",
-    "build:node": "tsc -b && vite build && rm -rf ../server/dist/assets ../server/dist/index.html && mv dist/* ../server/dist/",
+    "build:web": "tsc -b && vite build && cp -r dist/* server/embeddist/dist/",
+    "build:server": "cd server && CGO_ENABLED=0 go build -ldflags=\"-s -w\" -o lansend .",
+    "build": "pnpm run build:web && pnpm run build:server",
     "preview": "vite preview"
   },
   "dependencies": {

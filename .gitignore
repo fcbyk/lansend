@@ -1,37 +1,22 @@
-# ===== Python =====
-*.pyc
-*.pyo
-*.egg
-*.egg-info/
-__pycache__/
-.pytest_cache/
-.coverage
-.venv/
-dist/
-build/
-downloads/
+# Dependencies
+node_modules/
 
-# ===== IDE / Editor =====
+# Build output
+dist/
+dist-ssr/
+
+# Go binary
+lansend
+lansend.exe
+
+# IDE / Editor
 .idea/
 .vscode/
-.obsidian/
 .DS_Store
+*.sw?
 
-# ===== Node / Frontend =====
-node_modules/
-.nuxt/
-.output/
-.pnpm-store/
-*/.vitepress/cache
-docs/pnpm-lock.yaml
+# Logs
+*.log
 
-# ===== Project-specific =====
-python/bykcli/web/static
+# Project
 .workbuddy/
-.data
-book/
-doc_build/
-website/
-target/
-
-byksdk
