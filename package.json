@@ -5,7 +5,7 @@
     "run": "./server/lansend",
     "dev": "concurrently \"vite\" \"./server/lansend --no-browser\"",
     "build:web": "tsc -b && vite build && cp -r dist/* server/embeddist/dist/",
-    "build:server": "cd server && CGO_ENABLED=0 go build -ldflags=\"-s -w\" -o lansend .",
+    "build:server": "cd server && CGO_ENABLED=1 go build -ldflags=\"-s -w\" -o lansend .",
     "build": "pnpm run build:web && pnpm run build:server",
     "preview": "vite preview"
   },

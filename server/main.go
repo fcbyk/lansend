@@ -18,6 +18,7 @@ import (
 	"github.com/fcbyk/lansend/internal/network"
 	"github.com/fcbyk/lansend/internal/spa"
 	"github.com/fcbyk/lansend/internal/speedtest"
+	"github.com/fcbyk/lansend/internal/tray"
 	"github.com/fcbyk/lansend/internal/upload"
 
 	"github.com/spf13/cobra"
@@ -35,6 +36,11 @@ var (
 )
 
 func main() {
+	if len(os.Args) == 1 {
+		runTray()
+		return
+	}
+
 	rootCmd := &cobra.Command{
 		Use:   "lansend",
 		Short: "Start a local web server for sharing files over LAN",
@@ -220,4 +226,22 @@ func run(cmd *cobra.Command, args []string) {
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+func runTray() {
+	dir, err := os.Getwd()
+	if err != nil {
+		dir = "."
+	}
+
+	fmt.Println()
+	fmt.Println(" 托盘已启动，关闭终端不影响运行。")
+	fmt.Println(" 通过菜单栏图标控制服务器。")
+	fmt.Println()
+
+	cfg := &config.Config{
+		SharedDirectory: dir,
+	}
+
+	tray.Run(cfg, 80)
 }

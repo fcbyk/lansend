@@ -49,6 +49,37 @@ func OpenBrowser(url string) error {
 	return cmd.Start()
 }
 
+func PickDirectory() (string, error) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("osascript", "-e", `POSIX path of (choose folder with prompt "选择共享目录")`)
+	case "linux":
+		if _, err := exec.LookPath("zenity"); err == nil {
+			cmd = exec.Command("zenity", "--file-selection", "--directory")
+		} else if _, err := exec.LookPath("kdialog"); err == nil {
+			cmd = exec.Command("kdialog", "--getexistingdirectory")
+		} else {
+			return "", fmt.Errorf("no directory picker found (install zenity or kdialog)")
+		}
+	case "windows":
+		cmd = exec.Command("powershell", "-Command",
+			`Add-Type -AssemblyName System.Windows.Forms; $f=New-Object System.Windows.Forms.FolderBrowserDialog; $f.ShowDialog(); $f.SelectedPath`)
+	default:
+		return "", fmt.Errorf("unsupported OS: %s", runtime.GOOS)
+	}
+
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	path := strings.TrimSpace(string(out))
+	if path == "" {
+		return "", fmt.Errorf("no directory selected")
+	}
+	return path, nil
+}
+
 func WaitForServerReady(port int, timeout time.Duration) bool {
 	url := fmt.Sprintf("http://127.0.0.1:%d/", port)
 	deadline := time.Now().Add(timeout)
