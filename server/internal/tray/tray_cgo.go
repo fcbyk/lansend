@@ -81,6 +81,8 @@ func (a *app) onReady() {
 	quitItem := systray.AddMenuItem("退出", "退出程序")
 
 	go a.handleMenu(browserItem, dirItem, quitItem)
+
+	a.startServerLocked()
 }
 
 func (a *app) handleMenu(browserItem, dirItem, quitItem *systray.MenuItem) {

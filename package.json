@@ -2,7 +2,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "run": "./server/lansend -h",
+    "run": "./server/lansend",
     "dev": "concurrently \"vite\" \"./server/lansend --no-browser\"",
     "build:web": "tsc -b && vite build && cp -r dist/* server/embeddist/dist/",
     "build:server": "cd server && CGO_ENABLED=1 go build -ldflags=\"-s -w\" -o lansend .",

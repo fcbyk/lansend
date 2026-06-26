@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"log"
@@ -8,6 +9,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -33,14 +36,10 @@ var (
 	download     bool
 	enableUpload bool
 	chatEnabled  bool
+	trayMode     bool
 )
 
 func main() {
-	if len(os.Args) == 1 {
-		runTray()
-		return
-	}
-
 	rootCmd := &cobra.Command{
 		Use:   "lansend",
 		Short: "Start a local web server for sharing files over LAN",
@@ -48,12 +47,13 @@ func main() {
 	}
 
 	rootCmd.Flags().IntVarP(&port, "port", "p", 80, "Web server port")
-	rootCmd.Flags().StringVarP(&directory, "directory", "d", "", "Directory to share (default: executable location)")
+	rootCmd.Flags().StringVarP(&directory, "directory", "d", "", "Directory to share (default: current directory)")
 	rootCmd.Flags().BoolVar(&password, "password", false, "Prompt to set upload password")
 	rootCmd.Flags().BoolVar(&browser, "browser", false, "Enable automatic browser opening")
 	rootCmd.Flags().BoolVar(&download, "download", false, "Enable download functionality")
 	rootCmd.Flags().BoolVar(&enableUpload, "upload", false, "Enable upload functionality")
 	rootCmd.Flags().BoolVar(&chatEnabled, "chat", false, "Enable chat functionality")
+	rootCmd.Flags().BoolVar(&trayMode, "tray", false, "Start in system tray mode")
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -143,6 +143,21 @@ func checkPort(port int) bool {
 }
 
 func run(cmd *cobra.Command, args []string) {
+	if trayMode {
+		runTray()
+		return
+	}
+
+	hasFlags := cmd.Flags().Changed("port") || cmd.Flags().Changed("directory") ||
+		cmd.Flags().Changed("password") || cmd.Flags().Changed("browser") ||
+		cmd.Flags().Changed("download") || cmd.Flags().Changed("upload") ||
+		cmd.Flags().Changed("chat")
+
+	if !hasFlags {
+		runInteractive()
+		return
+	}
+
 	if directory == "" {
 		if wd, err := os.Getwd(); err == nil {
 			directory = wd
@@ -151,6 +166,65 @@ func run(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	startServer()
+}
+
+func runInteractive() {
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Println()
+	fmt.Println("  lansend - LAN File Sharing")
+	fmt.Println("  ────────────────────────────")
+	fmt.Println()
+
+	wd, _ := os.Getwd()
+	fmt.Printf("  Directory [%s]: ", wd)
+	input, _ := reader.ReadString('\n')
+	input = strings.TrimSpace(input)
+	if input != "" {
+		directory = input
+	} else {
+		directory = wd
+	}
+
+	fmt.Printf("  Port [80]: ")
+	input, _ = reader.ReadString('\n')
+	input = strings.TrimSpace(input)
+	if input != "" {
+		if p, err := strconv.Atoi(input); err == nil && p > 0 && p <= 65535 {
+			port = p
+		} else {
+			fmt.Println("  Invalid port, using default 80")
+		}
+	}
+
+	enableUpload = promptYesNo(reader, "  Enable upload? [y/N]: ")
+	download = promptYesNo(reader, "  Enable download? [y/N]: ")
+	chatEnabled = promptYesNo(reader, "  Enable chat? [y/N]: ")
+
+	if enableUpload {
+		password = promptYesNo(reader, "  Set upload password? [y/N]: ")
+	}
+
+	browser = promptYesNo(reader, "  Open browser after start? [y/N]: ")
+	trayMode = promptYesNo(reader, "  Start in system tray? [y/N]: ")
+
+	if trayMode {
+		runTray()
+		return
+	}
+
+	startServer()
+}
+
+func promptYesNo(reader *bufio.Reader, prompt string) bool {
+	fmt.Print(prompt)
+	input, _ := reader.ReadString('\n')
+	input = strings.TrimSpace(strings.ToLower(input))
+	return input == "y" || input == "yes"
+}
+
+func startServer() {
 	sharedDirectory, ok := validateDirectory(directory)
 	if !ok {
 		os.Exit(1)
@@ -229,9 +303,12 @@ func run(cmd *cobra.Command, args []string) {
 }
 
 func runTray() {
-	dir, err := os.Getwd()
-	if err != nil {
-		dir = "."
+	if directory == "" {
+		if wd, err := os.Getwd(); err == nil {
+			directory = wd
+		} else {
+			directory = "."
+		}
 	}
 
 	fmt.Println()
@@ -240,8 +317,32 @@ func runTray() {
 	fmt.Println()
 
 	cfg := &config.Config{
-		SharedDirectory: dir,
+		SharedDirectory: directory,
+		DownloadEnabled: download,
+		UploadEnabled:   enableUpload,
+		ChatEnabled:     chatEnabled,
 	}
 
-	tray.Run(cfg, 80)
+	if browser {
+		url := fmt.Sprintf("http://localhost:%d", port)
+		networks := network.GetPrivateNetworks()
+		for _, n := range networks {
+			if n.Virtual {
+				continue
+			}
+			for _, ip := range n.IPs {
+				if ip != "127.0.0.1" {
+					url = fmt.Sprintf("http://%s:%d", ip, port)
+					break
+				}
+			}
+		}
+		go func() {
+			if cli.WaitForServerReady(port, 10*time.Second) {
+				cli.OpenBrowser(url)
+			}
+		}()
+	}
+
+	tray.Run(cfg, port)
 }
