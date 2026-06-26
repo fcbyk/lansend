@@ -30,7 +30,7 @@ export const BreadcrumbNav = memo(function BreadcrumbNav({
 
   const { shouldShake, onShakeEnd } = usePasswordShake(passwordError, showPasswordInput)
 
-  const canUpload = !requirePassword || isPasswordVerified
+  const canUpload = uploadEnabled && (!requirePassword || isPasswordVerified)
   const needsPassword = !!(requirePassword && !canUpload)
   const shouldShowUploadButton = uploadEnabled
   const shouldShowSelectButton = downloadEnabled

@@ -49,15 +49,20 @@ export function FileList({
   } = useUploadContext()
   const { selectionMode, selectedPaths, isSelected, toggleItemSelect } = useSelectionContext()
 
-  const canUpload = !requirePassword || isPasswordVerified
+  const canUpload = uploadEnabled && (!requirePassword || isPasswordVerified)
 
   const selectedCount = selectedPaths.length
 
   const handleDragOverWrapper = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
-      if (!canUpload) return
       e.preventDefault()
       e.stopPropagation()
+      if (!canUpload) {
+        if (e.dataTransfer) {
+          e.dataTransfer.dropEffect = 'none'
+        }
+        return
+      }
       if (e.dataTransfer) {
         e.dataTransfer.dropEffect = 'copy'
       }
@@ -68,9 +73,9 @@ export function FileList({
 
   const handleDragEnterWrapper = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
-      if (!canUpload) return
       e.preventDefault()
       e.stopPropagation()
+      if (!canUpload) return
       onDragEnter(e.nativeEvent)
     },
     [canUpload, onDragEnter],
@@ -78,8 +83,8 @@ export function FileList({
 
   const handleDragLeaveWrapper = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
-      if (!canUpload) return
       e.preventDefault()
+      if (!canUpload) return
       // 注意：这里不调用 stopPropagation()，让 dragleave 事件冒泡到 window
       // 这样 AppContent 中的全局 handleGlobalDragLeave 兜底检测（视口边界检查）才能正常工作
       onDragLeave(e.nativeEvent)
@@ -89,9 +94,9 @@ export function FileList({
 
   const handleDropWrapper = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
-      if (!canUpload) return
       e.preventDefault()
       e.stopPropagation()
+      if (!canUpload) return
       onDrop(e.nativeEvent)
     },
     [canUpload, onDrop],

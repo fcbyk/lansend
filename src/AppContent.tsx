@@ -83,7 +83,7 @@ export function AppContent() {
   const mainContainerRef = useRef<HTMLDivElement>(null)
 
   // --- Computed ---
-  const canUpload = !requirePassword || isPasswordVerified
+  const canUpload = uploadEnabled && (!requirePassword || isPasswordVerified)
 
   const currentUploadPath = (() => {
     if (!shareName) return ''
