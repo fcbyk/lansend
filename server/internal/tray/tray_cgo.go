@@ -74,8 +74,8 @@ func (a *app) onReady() {
 
 	settingsItem := systray.AddMenuItem("设置", "设置")
 	dirItem := settingsItem.AddSubMenuItem("选择共享目录", "选择要共享的文件夹")
-	a.uploadToggleItem = settingsItem.AddSubMenuItemCheckbox("上传开关", "启用/禁用上传功能", !a.cfg.UnUpload)
-	a.downloadToggleItem = settingsItem.AddSubMenuItemCheckbox("下载开关", "启用/禁用下载功能", !a.cfg.UnDownload)
+	a.uploadToggleItem = settingsItem.AddSubMenuItemCheckbox("上传开关", "启用/禁用上传功能", a.cfg.UploadEnabled)
+	a.downloadToggleItem = settingsItem.AddSubMenuItemCheckbox("下载开关", "启用/禁用下载功能", a.cfg.DownloadEnabled)
 	a.chatToggleItem = settingsItem.AddSubMenuItemCheckbox("聊天开关", "启用/禁用聊天功能", a.cfg.ChatEnabled)
 	systray.AddSeparator()
 	quitItem := systray.AddMenuItem("退出", "退出程序")
@@ -131,11 +131,11 @@ func (a *app) toggleUpload() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	a.cfg.UnUpload = !a.cfg.UnUpload
-	if a.cfg.UnUpload {
-		a.uploadToggleItem.Uncheck()
-	} else {
+	a.cfg.UploadEnabled = !a.cfg.UploadEnabled
+	if a.cfg.UploadEnabled {
 		a.uploadToggleItem.Check()
+	} else {
+		a.uploadToggleItem.Uncheck()
 	}
 
 	if a.running {
@@ -148,11 +148,11 @@ func (a *app) toggleDownload() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	a.cfg.UnDownload = !a.cfg.UnDownload
-	if a.cfg.UnDownload {
-		a.downloadToggleItem.Uncheck()
-	} else {
+	a.cfg.DownloadEnabled = !a.cfg.DownloadEnabled
+	if a.cfg.DownloadEnabled {
 		a.downloadToggleItem.Check()
+	} else {
+		a.downloadToggleItem.Uncheck()
 	}
 
 	if a.running {
@@ -198,13 +198,13 @@ func (a *app) startServerLocked() {
 
 	mux.HandleFunc("GET /api/config", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		fmt.Fprintf(w, `{"code":200,"message":"success","data":{"un_download":%t,"un_upload":%t,"chat_enabled":%t}}`,
-			cfg.UnDownload, cfg.UnUpload, cfg.ChatEnabled)
+		fmt.Fprintf(w, `{"code":200,"message":"success","data":{"download_enabled":%t,"upload_enabled":%t,"chat_enabled":%t}}`,
+			cfg.DownloadEnabled, cfg.UploadEnabled, cfg.ChatEnabled)
 	})
 
 	files.RegisterRoutes(mux, fileService)
 
-	if !cfg.UnUpload {
+	if cfg.UploadEnabled {
 		upload.RegisterRoutes(mux, &upload.Service{
 			FileService: fileService,
 			Config:      cfg,

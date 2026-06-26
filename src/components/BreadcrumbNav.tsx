@@ -8,15 +8,15 @@ import { useSelectionContext } from '../contexts/SelectionContext'
 import { usePasswordShake } from '../hooks/usePasswordShake'
 
 interface BreadcrumbNavProps {
-  unDownload?: boolean
-  unUpload?: boolean
+  downloadEnabled?: boolean
+  uploadEnabled?: boolean
   onNavigate: (path: string) => void
   onFilesSelected: (files: File[]) => void
 }
 
 export const BreadcrumbNav = memo(function BreadcrumbNav({
-  unDownload,
-  unUpload,
+  downloadEnabled,
+  uploadEnabled,
   onNavigate,
   onFilesSelected,
 }: BreadcrumbNavProps) {
@@ -32,8 +32,8 @@ export const BreadcrumbNav = memo(function BreadcrumbNav({
 
   const canUpload = !requirePassword || isPasswordVerified
   const needsPassword = !!(requirePassword && !canUpload)
-  const shouldShowUploadButton = !unUpload
-  const shouldShowSelectButton = !unDownload
+  const shouldShowUploadButton = uploadEnabled
+  const shouldShowSelectButton = downloadEnabled
 
   const effectiveShowPasswordInput = showPasswordInput && needsPassword
 

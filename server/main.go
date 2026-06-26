@@ -26,13 +26,13 @@ import (
 )
 
 var (
-	port          int
-	directory     string
-	askPassword   bool
-	noBrowser     bool
-	hideDownload  bool
-	disableUpload bool
-	chatEnabled   bool
+	port         int
+	directory    string
+	password     bool
+	browser      bool
+	download     bool
+	enableUpload bool
+	chatEnabled  bool
 )
 
 func main() {
@@ -49,10 +49,10 @@ func main() {
 
 	rootCmd.Flags().IntVarP(&port, "port", "p", 80, "Web server port")
 	rootCmd.Flags().StringVarP(&directory, "directory", "d", "", "Directory to share (default: executable location)")
-	rootCmd.Flags().BoolVar(&askPassword, "ask-password", false, "Prompt to set upload password")
-	rootCmd.Flags().BoolVar(&noBrowser, "no-browser", false, "Disable automatic browser opening")
-	rootCmd.Flags().BoolVar(&hideDownload, "hide-download", false, "Hide download buttons in directory tab")
-	rootCmd.Flags().BoolVar(&disableUpload, "disable-upload", false, "Disable upload functionality")
+	rootCmd.Flags().BoolVar(&password, "password", false, "Prompt to set upload password")
+	rootCmd.Flags().BoolVar(&browser, "browser", false, "Enable automatic browser opening")
+	rootCmd.Flags().BoolVar(&download, "download", false, "Enable download functionality")
+	rootCmd.Flags().BoolVar(&enableUpload, "upload", false, "Enable upload functionality")
 	rootCmd.Flags().BoolVar(&chatEnabled, "chat", false, "Enable chat functionality")
 
 	if err := rootCmd.Execute(); err != nil {
@@ -78,20 +78,20 @@ func validateDirectory(dir string) (string, bool) {
 	return abs, true
 }
 
-func promptPassword(askPassword, disableUpload bool) string {
-	if !askPassword || disableUpload {
+func promptPassword(askPass, uploadEnabled bool) string {
+	if !askPass || !uploadEnabled {
 		return ""
 	}
 	fmt.Print("Upload password (press Enter to use default: 123456): ")
-	password, err := term.ReadPassword(int(os.Stdin.Fd()))
+	pwd, err := term.ReadPassword(int(os.Stdin.Fd()))
 	fmt.Println()
 	if err != nil {
 		return ""
 	}
-	if len(password) == 0 {
+	if len(pwd) == 0 {
 		return "123456"
 	}
-	return string(password)
+	return string(pwd)
 }
 
 func printServerSummary(sharedDirectory string, port int, networks []network.InterfaceInfo, uploadPasswordEnabled bool) string {
@@ -160,7 +160,7 @@ func run(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	uploadPassword := promptPassword(askPassword, disableUpload)
+	uploadPassword := promptPassword(password, enableUpload)
 
 	networks := network.GetPrivateNetworks()
 	url := printServerSummary(sharedDirectory, port, networks, uploadPassword != "")
@@ -168,8 +168,8 @@ func run(cmd *cobra.Command, args []string) {
 	cfg := &config.Config{
 		SharedDirectory: sharedDirectory,
 		UploadPassword:  uploadPassword,
-		UnDownload:      hideDownload,
-		UnUpload:        disableUpload,
+		DownloadEnabled: download,
+		UploadEnabled:   enableUpload,
 		ChatEnabled:     chatEnabled,
 	}
 
@@ -181,13 +181,13 @@ func run(cmd *cobra.Command, args []string) {
 
 	mux.HandleFunc("GET /api/config", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		fmt.Fprintf(w, `{"code":200,"message":"success","data":{"un_download":%t,"un_upload":%t,"chat_enabled":%t}}`,
-			cfg.UnDownload, cfg.UnUpload, cfg.ChatEnabled)
+		fmt.Fprintf(w, `{"code":200,"message":"success","data":{"download_enabled":%t,"upload_enabled":%t,"chat_enabled":%t}}`,
+			cfg.DownloadEnabled, cfg.UploadEnabled, cfg.ChatEnabled)
 	})
 
 	files.RegisterRoutes(mux, fileService)
 
-	if !cfg.UnUpload {
+	if cfg.UploadEnabled {
 		upload.RegisterRoutes(mux, &upload.Service{
 			FileService: fileService,
 			Config:      cfg,
@@ -205,7 +205,7 @@ func run(cmd *cobra.Command, args []string) {
 		Handler: mux,
 	}
 
-	if !noBrowser && url != "" {
+	if browser && url != "" {
 		go func() {
 			if cli.WaitForServerReady(port, 10*time.Second) {
 				cli.OpenBrowser(url)

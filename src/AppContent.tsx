@@ -74,8 +74,8 @@ export function AppContent() {
 
   // --- Local state ---
   const [activeTab, setActiveTab] = useState<LansendActiveTab>(TAB.EMPTY)
-  const [unDownload, setUnDownload] = useState(false)
-  const [unUpload, setUnUpload] = useState(false)
+  const [downloadEnabled, setDownloadEnabled] = useState(false)
+  const [uploadEnabled, setUploadEnabled] = useState(false)
   const [chatEnabled, setChatEnabled] = useState(false)
   const [showUploadDetailsTab, setShowUploadDetailsTab] = useState(false)
 
@@ -315,10 +315,10 @@ export function AppContent() {
       try {
         const config = await getLansendConfig()
         if (!mounted) return
-        setUnDownload(config.un_download === true)
-        setUnUpload(config.un_upload === true)
+        setDownloadEnabled(config.download_enabled === true)
+        setUploadEnabled(config.upload_enabled === true)
         setChatEnabled(config.chat_enabled === true)
-        if (config.un_upload === true && isMobileLayoutRef.current && !previewFileRef.current) {
+        if (config.upload_enabled === true && isMobileLayoutRef.current && !previewFileRef.current) {
           setActiveTab(TAB.DIRECTORY)
         }
       } catch (e) {
@@ -351,13 +351,13 @@ export function AppContent() {
   }, [currentPath, clearSelection])
 
   useEffect(() => {
-    if (unDownload) clearSelection()
-  }, [unDownload, clearSelection])
+    if (!downloadEnabled) clearSelection()
+  }, [downloadEnabled, clearSelection])
 
   // --- Render ---
   const fileListProps = {
-    unDownload,
-    unUpload,
+    downloadEnabled,
+    uploadEnabled,
     uploadPathHint,
     onNavigate: navigateToPath,
     onItemClick: handleItemClick,

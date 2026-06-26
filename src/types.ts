@@ -68,8 +68,8 @@ export interface ChatMessagesResponse {
 }
 
 export interface LansendConfig {
-  un_download: boolean
-  un_upload: boolean
+  download_enabled: boolean
+  upload_enabled: boolean
   chat_enabled: boolean
 }
 

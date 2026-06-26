@@ -32,13 +32,13 @@ func Run(cfg *config.Config, port int) {
 
 	mux.HandleFunc("GET /api/config", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		fmt.Fprintf(w, `{"code":200,"message":"success","data":{"un_download":%t,"un_upload":%t,"chat_enabled":%t}}`,
-			cfg.UnDownload, cfg.UnUpload, cfg.ChatEnabled)
+		fmt.Fprintf(w, `{"code":200,"message":"success","data":{"download_enabled":%t,"upload_enabled":%t,"chat_enabled":%t}}`,
+			cfg.DownloadEnabled, cfg.UploadEnabled, cfg.ChatEnabled)
 	})
 
 	files.RegisterRoutes(mux, fileService)
 
-	if !cfg.UnUpload {
+	if cfg.UploadEnabled {
 		upload.RegisterRoutes(mux, &upload.Service{
 			FileService: fileService,
 			Config:      cfg,

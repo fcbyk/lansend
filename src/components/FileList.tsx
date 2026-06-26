@@ -12,8 +12,8 @@ import { SelectionBar } from './SelectionBar'
 import { UploadGroups } from './UploadGroups'
 
 interface FileListProps {
-  unDownload?: boolean
-  unUpload?: boolean
+  downloadEnabled?: boolean
+  uploadEnabled?: boolean
   uploadPathHint?: string
   onNavigate: (path: string) => void
   onItemClick: (item: DirectoryItem) => void
@@ -26,8 +26,8 @@ interface FileListProps {
 }
 
 export function FileList({
-  unDownload,
-  unUpload,
+  downloadEnabled,
+  uploadEnabled,
   uploadPathHint,
   onNavigate,
   onItemClick,
@@ -124,8 +124,8 @@ export function FileList({
         <div className="flex flex-col flex-1 min-h-0">
           {/* 顶部固定区域 */}
           <BreadcrumbNav
-            unDownload={unDownload}
-            unUpload={unUpload}
+            downloadEnabled={downloadEnabled}
+            uploadEnabled={uploadEnabled}
             onNavigate={onNavigate}
             onFilesSelected={onFilesSelected}
           />
