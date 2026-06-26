@@ -38,6 +38,10 @@ type app struct {
 	dirStatusItem  *systray.MenuItem
 	addrStatusItem *systray.MenuItem
 	statusItem     *systray.MenuItem
+
+	uploadToggleItem   *systray.MenuItem
+	downloadToggleItem *systray.MenuItem
+	chatToggleItem     *systray.MenuItem
 }
 
 func Run(cfg *config.Config, port int) {
@@ -66,7 +70,13 @@ func (a *app) onReady() {
 
 	a.toggleItem = systray.AddMenuItem("启动服务器", "启动/停止服务器")
 	browserItem := systray.AddMenuItem("打开浏览器", "在浏览器中打开")
-	dirItem := systray.AddMenuItem("选择共享目录", "选择要共享的文件夹")
+	systray.AddSeparator()
+
+	settingsItem := systray.AddMenuItem("设置", "设置")
+	dirItem := settingsItem.AddSubMenuItem("选择共享目录", "选择要共享的文件夹")
+	a.uploadToggleItem = settingsItem.AddSubMenuItemCheckbox("上传开关", "启用/禁用上传功能", !a.cfg.UnUpload)
+	a.downloadToggleItem = settingsItem.AddSubMenuItemCheckbox("下载开关", "启用/禁用下载功能", !a.cfg.UnDownload)
+	a.chatToggleItem = settingsItem.AddSubMenuItemCheckbox("聊天开关", "启用/禁用聊天功能", a.cfg.ChatEnabled)
 	systray.AddSeparator()
 	quitItem := systray.AddMenuItem("退出", "退出程序")
 
@@ -82,6 +92,12 @@ func (a *app) handleMenu(browserItem, dirItem, quitItem *systray.MenuItem) {
 			cli.OpenBrowser(fmt.Sprintf("http://%s:%d", a.lanIP, a.port))
 		case <-dirItem.ClickedCh:
 			a.pickAndApplyDirectory()
+		case <-a.uploadToggleItem.ClickedCh:
+			a.toggleUpload()
+		case <-a.downloadToggleItem.ClickedCh:
+			a.toggleDownload()
+		case <-a.chatToggleItem.ClickedCh:
+			a.toggleChat()
 		case <-quitItem.ClickedCh:
 			a.stopServer()
 			systray.Quit()
@@ -109,6 +125,57 @@ func (a *app) pickAndApplyDirectory() {
 		a.toggleItem.SetTitle("停止服务器")
 	}
 	a.mu.Unlock()
+}
+
+func (a *app) toggleUpload() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.cfg.UnUpload = !a.cfg.UnUpload
+	if a.cfg.UnUpload {
+		a.uploadToggleItem.Uncheck()
+	} else {
+		a.uploadToggleItem.Check()
+	}
+
+	if a.running {
+		a.stopServerLocked()
+		a.startServerLocked()
+	}
+}
+
+func (a *app) toggleDownload() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.cfg.UnDownload = !a.cfg.UnDownload
+	if a.cfg.UnDownload {
+		a.downloadToggleItem.Uncheck()
+	} else {
+		a.downloadToggleItem.Check()
+	}
+
+	if a.running {
+		a.stopServerLocked()
+		a.startServerLocked()
+	}
+}
+
+func (a *app) toggleChat() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.cfg.ChatEnabled = !a.cfg.ChatEnabled
+	if a.cfg.ChatEnabled {
+		a.chatToggleItem.Check()
+	} else {
+		a.chatToggleItem.Uncheck()
+	}
+
+	if a.running {
+		a.stopServerLocked()
+		a.startServerLocked()
+	}
 }
 
 func (a *app) toggleServer() {
