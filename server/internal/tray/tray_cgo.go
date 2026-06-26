@@ -27,12 +27,13 @@ import (
 var iconData []byte
 
 type app struct {
-	mu      sync.Mutex
-	server  *http.Server
-	running bool
-	cfg     *config.Config
-	port    int
-	lanIP   string
+	mu         sync.Mutex
+	server     *http.Server
+	running    bool
+	generation int64 // 每次启动新服务器时递增，防止旧 goroutine 覆盖状态
+	cfg        *config.Config
+	port       int
+	lanIP      string
 
 	toggleItem     *systray.MenuItem
 	dirStatusItem  *systray.MenuItem
@@ -224,6 +225,9 @@ func (a *app) startServerLocked() {
 		Handler: mux,
 	}
 
+	a.generation++
+	gen := a.generation
+
 	a.running = true
 	a.toggleItem.SetTitle("停止服务器")
 	a.statusItem.SetTitle("状态: 运行中")
@@ -235,7 +239,10 @@ func (a *app) startServerLocked() {
 			log.Printf("Server error: %v\n", err)
 		}
 		a.mu.Lock()
-		a.running = false
+		// 只有当前 generation 匹配时才更新状态，防止旧 goroutine 覆盖新服务器的 running 状态
+		if a.generation == gen {
+			a.running = false
+		}
 		a.mu.Unlock()
 	}()
 }
