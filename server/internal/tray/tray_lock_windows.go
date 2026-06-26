@@ -56,7 +56,7 @@ func isProcessAlive(pid int) bool {
 	if err != nil {
 		return false
 	}
-	return event == windows.WAIT_TIMEOUT
+	return event == uint32(windows.WAIT_TIMEOUT)
 }
 
 func unlock() {

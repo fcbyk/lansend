@@ -1,9 +1,7 @@
-name: Build Binaries
+name: CI
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -53,7 +51,6 @@ jobs:
       - run: pnpm install
 
       - run: pnpm build:web
-        shell: bash
 
       - uses: actions/setup-go@v5
         with:
@@ -83,32 +80,3 @@ jobs:
           path: |
             lansend-*.tar.gz
             lansend-*.zip
-
-  release:
-    name: Create Draft Release
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: assets
-
-      - name: Flatten assets
-        shell: bash
-        run: find assets -type f -exec mv {} . \;
-
-      - name: Generate checksums
-        shell: bash
-        run: shasum -a 256 lansend-*.tar.gz lansend-*.zip > checksums.txt
-
-      - name: Create Draft Release
-        uses: softprops/action-gh-release@v2
-        with:
-          draft: true
-          files: |
-            lansend-*.tar.gz
-            lansend-*.zip
-            checksums.txt
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
