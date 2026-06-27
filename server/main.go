@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -31,6 +30,8 @@ import (
 var (
 	port           int
 	directory      string
+	useExeDir      bool
+	useWorkDir     bool
 	password       bool
 	uploadPassword string
 	browser        bool
@@ -47,14 +48,17 @@ func main() {
 		Run:   run,
 	}
 
-	rootCmd.Flags().IntVarP(&port, "port", "p", 80, "Web server port")
 	rootCmd.Flags().StringVarP(&directory, "directory", "d", "", "Directory to share (default: current directory)")
-	rootCmd.Flags().BoolVar(&password, "password", false, "Prompt to set upload password")
-	rootCmd.Flags().BoolVar(&browser, "browser", false, "Enable automatic browser opening")
-	rootCmd.Flags().BoolVar(&download, "download", false, "Enable download functionality")
-	rootCmd.Flags().BoolVar(&enableUpload, "upload", false, "Enable upload functionality")
-	rootCmd.Flags().BoolVar(&chatEnabled, "chat", false, "Enable chat functionality")
-	rootCmd.Flags().BoolVar(&trayMode, "tray", false, "Start in system tray mode")
+	rootCmd.Flags().BoolVarP(&useExeDir, "exe", "e", false, "Use executable directory")
+	rootCmd.Flags().BoolVarP(&useWorkDir, "work", "w", false, "Use current working directory")
+	rootCmd.Flags().IntVarP(&port, "port", "p", 80, "Web server port")
+	rootCmd.Flags().BoolVarP(&download, "download", "1", false, "Enable download functionality")
+	rootCmd.Flags().BoolVarP(&enableUpload, "upload", "2", false, "Enable upload functionality")
+	rootCmd.Flags().BoolVarP(&chatEnabled, "chat", "3", false, "Enable chat functionality")
+	rootCmd.Flags().BoolVarP(&password, "password", "4", false, "Prompt to set upload password")
+	rootCmd.Flags().BoolVarP(&browser, "browser", "b", false, "Enable automatic browser opening")
+	rootCmd.Flags().BoolVarP(&trayMode, "tray", "t", false, "Start in system tray mode")
+	rootCmd.Flags().SortFlags = false
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -140,327 +144,126 @@ func checkPort(port int) bool {
 	return true
 }
 
+// getExeDir returns the directory containing the running executable.
+func getExeDir() string {
+	if exePath, err := os.Executable(); err == nil {
+		return filepath.Dir(exePath)
+	}
+	if wd, err := os.Getwd(); err == nil {
+		return wd
+	}
+	return "."
+}
+
 func run(cmd *cobra.Command, args []string) {
 	if trayMode {
 		runTray()
 		return
 	}
 
-	hasFlags := cmd.Flags().Changed("port") || cmd.Flags().Changed("directory") ||
+	hasPath := cmd.Flags().Changed("directory") ||
+		cmd.Flags().Changed("exe") ||
+		cmd.Flags().Changed("work")
+
+	hasFlags := cmd.Flags().Changed("port") ||
 		cmd.Flags().Changed("password") || cmd.Flags().Changed("browser") ||
 		cmd.Flags().Changed("download") || cmd.Flags().Changed("upload") ||
 		cmd.Flags().Changed("chat")
 
-	if !hasFlags {
+	if !hasPath && !hasFlags {
 		runInteractive()
 		return
 	}
 
-	if directory == "" {
+	if !hasPath {
+		fmt.Fprintln(os.Stderr, "Error: must specify a directory: -d /path, -e (exe dir), or -w (work dir)")
+		os.Exit(1)
+	}
+
+	// Resolve directory
+	if cmd.Flags().Changed("directory") {
+		// already set by pflag
+	} else if cmd.Flags().Changed("work") {
 		if wd, err := os.Getwd(); err == nil {
 			directory = wd
 		} else {
 			directory = "."
 		}
+	} else if cmd.Flags().Changed("exe") {
+		directory = getExeDir()
 	}
 
 	startServer()
 }
 
-const (
-	colorDim   = "\033[90m"
-	colorRed   = "\033[31m"
-	colorGreen = "\033[32m"
-	colorReset = "\033[0m"
-)
 
-func dim(s string) string {
-	return colorDim + s + colorReset
-}
-
-func boolToYN(v bool) string {
-	if v {
-		return "Yes"
-	}
-	return "No"
-}
+// ── Interactive Mode ──────────────────────
 
 func runInteractive() {
 	fmt.Println()
 	fmt.Println("  lansend - LAN File Sharing")
 	fmt.Println("  ────────────────────────────")
 	fmt.Println()
+	fmt.Println("  e = exe dir       w = work dir")
+	fmt.Println("  1 = download      2 = upload")
+	fmt.Println("  3 = chat          4 = password")
+	fmt.Println("  b = browser       t = tray")
+	fmt.Println()
+	fmt.Print("  Flags: ")
 
-	wd, _ := os.Getwd()
-	directory = readString("  Directory ", wd, "输入要共享的目录路径，回车默认")
-
-	port = readPort(80)
-
-	enableUpload = readBool("  Enable upload? ", false)
-	if enableUpload {
-		uploadPassword = readPassword("  Upload password ", "输入密码，回车跳过")
+	input, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil {
+		os.Exit(1)
 	}
-	download = readBool("  Enable download? ", false)
-	chatEnabled = readBool("  Enable chat? ", false)
+	input = strings.TrimSpace(input)
 
-	browser = readBool("  Open browser after start? ", false)
-	trayMode = readBool("  Start in system tray? ", false)
+	hasE := strings.ContainsRune(input, 'e')
+	hasW := strings.ContainsRune(input, 'w')
+	if !hasE && !hasW {
+		fmt.Println("Error: must choose a directory: e (exe dir) or w (work dir)")
+		os.Exit(1)
+	}
+	if hasE && hasW {
+		fmt.Println("Error: cannot use both -e and -w")
+		os.Exit(1)
+	}
 
-	confirmSettings()
+	port = 80
+
+	for _, ch := range input {
+		switch ch {
+		case 'e':
+			directory = getExeDir()
+		case 'w':
+			if wd, err := os.Getwd(); err == nil {
+				directory = wd
+			} else {
+				directory = "."
+			}
+		case '1':
+			download = true
+		case '2':
+			enableUpload = true
+		case '3':
+			chatEnabled = true
+		case '4':
+			password = true
+		case 'b':
+			browser = true
+		case 't':
+			trayMode = true
+		}
+	}
+
+	if password && enableUpload {
+		uploadPassword = promptPassword()
+	}
 
 	if trayMode {
 		runTray()
-		return
+	} else {
+		startServer()
 	}
-
-	startServer()
-}
-
-func readString(label, defaultVal, placeholder string) string {
-	fd := int(os.Stdin.Fd())
-	oldState, err := term.MakeRaw(fd)
-	if err != nil {
-		return readStringFallback(label, defaultVal, placeholder)
-	}
-	defer term.Restore(fd, oldState)
-
-	inputPrefix := fmt.Sprintf("%s[%s]  ", label, defaultVal)
-	fmt.Print(inputPrefix)
-	fmt.Print(dim(placeholder))
-
-	var buf []rune
-	placeholderVisible := true
-
-	for {
-		var b [3]byte
-		n, _ := os.Stdin.Read(b[:])
-
-		if n == 1 {
-			switch b[0] {
-			case 3:
-				term.Restore(fd, oldState)
-				fmt.Print("\r\n")
-				os.Exit(0)
-			case 13:
-				value := string(buf)
-				if value == "" {
-					value = defaultVal
-				}
-				fmt.Print("\r\n")
-				fmt.Print("\033[1A\r\033[K")
-				fmt.Printf("%s[%s%s%s]", label, colorGreen, value, colorReset)
-				fmt.Print("\r\n")
-				return value
-			case 127:
-				if len(buf) > 0 {
-					buf = buf[:len(buf)-1]
-					fmt.Print("\b \b")
-				}
-				if len(buf) == 0 && !placeholderVisible {
-					fmt.Print("\r" + inputPrefix + dim(placeholder))
-					placeholderVisible = true
-				}
-			default:
-				if b[0] >= 32 {
-					if placeholderVisible {
-						fmt.Print("\r" + inputPrefix + "\033[K")
-						placeholderVisible = false
-						for _, r := range buf {
-							fmt.Print(string(r))
-						}
-					}
-					buf = append(buf, rune(b[0]))
-					fmt.Print(string(b[0]))
-				}
-			}
-		}
-	}
-}
-
-func readPort(defaultVal int) int {
-	defaultStr := strconv.Itoa(defaultVal)
-	label := "  Port "
-	placeholder := "输入端口号 (1-65535)，回车默认"
-
-	for {
-		input := readString(label, defaultStr, placeholder)
-		if input == defaultStr {
-			return defaultVal
-		}
-		p, err := strconv.Atoi(input)
-		if err != nil || p < 1 || p > 65535 {
-			fmt.Printf("  %s⚠ 无效端口 (1-65535)，重新输入%s\n", colorRed, colorReset)
-			time.Sleep(1 * time.Second)
-			fmt.Print("\033[1A\r\033[K")
-			fmt.Print("\033[1A\r\033[K")
-			continue
-		}
-		return p
-	}
-}
-
-func readBool(label string, defaultVal bool) bool {
-	fd := int(os.Stdin.Fd())
-	oldState, err := term.MakeRaw(fd)
-	if err != nil {
-		return readBoolFallback(label, defaultVal)
-	}
-	defer term.Restore(fd, oldState)
-
-	current := defaultVal
-	hint := dim("← → 切换，回车确认")
-
-	printLine := func() {
-		fmt.Printf("\r\033[K%s[%s]  %s", label, boolToYN(current), hint)
-	}
-	printLine()
-
-	for {
-		var b [3]byte
-		n, _ := os.Stdin.Read(b[:])
-
-		if n == 1 {
-			switch b[0] {
-			case 3:
-				term.Restore(fd, oldState)
-				fmt.Print("\r\n")
-				os.Exit(0)
-			case 13:
-				fmt.Print("\r\n")
-				fmt.Print("\033[1A\r\033[K")
-				fmt.Printf("%s[%s%s%s]", label, colorGreen, boolToYN(current), colorReset)
-				fmt.Print("\r\n")
-				return current
-			}
-		} else if n == 3 && b[0] == 27 && b[1] == 91 {
-			switch b[2] {
-			case 67:
-				if !current {
-					current = true
-					printLine()
-				}
-			case 68:
-				if current {
-					current = false
-					printLine()
-				}
-			}
-		}
-	}
-}
-
-func readPassword(label, placeholder string) string {
-	fd := int(os.Stdin.Fd())
-	oldState, err := term.MakeRaw(fd)
-	if err != nil {
-		return readPasswordFallback(label, placeholder)
-	}
-	defer term.Restore(fd, oldState)
-
-	inputPrefix := fmt.Sprintf("%s[]  ", label)
-	fmt.Print(inputPrefix)
-	fmt.Print(dim(placeholder))
-
-	var buf []rune
-	placeholderVisible := true
-
-	for {
-		var b [3]byte
-		n, _ := os.Stdin.Read(b[:])
-
-		if n == 1 {
-			switch b[0] {
-			case 3:
-				term.Restore(fd, oldState)
-				fmt.Print("\r\n")
-				os.Exit(0)
-			case 13:
-				value := string(buf)
-				fmt.Print("\r\n")
-				fmt.Print("\033[1A\r\033[K")
-				if value == "" {
-					fmt.Printf("%s[%s无%s]", label, colorDim, colorReset)
-				} else {
-					masked := strings.Repeat("*", len(buf))
-					fmt.Printf("%s[%s%s%s]", label, colorGreen, masked, colorReset)
-				}
-				fmt.Print("\r\n")
-				return value
-			case 127:
-				if len(buf) > 0 {
-					buf = buf[:len(buf)-1]
-					fmt.Print("\b \b")
-				}
-				if len(buf) == 0 && !placeholderVisible {
-					fmt.Print("\r" + inputPrefix + dim(placeholder))
-					placeholderVisible = true
-				}
-			default:
-				if b[0] >= 32 {
-					if placeholderVisible {
-						fmt.Print("\r" + inputPrefix + "\033[K")
-						placeholderVisible = false
-						for range buf {
-							fmt.Print("*")
-						}
-					}
-					buf = append(buf, rune(b[0]))
-					fmt.Print("*")
-				}
-			}
-		}
-	}
-}
-
-func readPasswordFallback(label, placeholder string) string {
-	fmt.Printf("%s[]  %s\n", label, dim(placeholder))
-	fmt.Print("  ")
-	pwd, err := term.ReadPassword(int(os.Stdin.Fd()))
-	fmt.Println()
-	if err != nil || len(pwd) == 0 {
-		fmt.Printf("  → %s无%s\n", colorDim, colorReset)
-		return ""
-	}
-	masked := strings.Repeat("*", len(pwd))
-	fmt.Printf("  → %s%s%s\n", colorGreen, masked, colorReset)
-	return string(pwd)
-}
-
-func readStringFallback(label, defaultVal, placeholder string) string {
-	fmt.Printf("%s[%s]  %s\n", label, defaultVal, dim(placeholder))
-	fmt.Print("  ")
-	reader := bufio.NewReader(os.Stdin)
-	input, _ := reader.ReadString('\n')
-	input = strings.TrimSpace(input)
-	if input == "" {
-		fmt.Printf("  → %s%s%s\n", colorGreen, defaultVal, colorReset)
-		return defaultVal
-	}
-	return input
-}
-
-func readBoolFallback(label string, defaultVal bool) bool {
-	defaultStr := boolToYN(defaultVal)
-	defaultChar := "n"
-	if defaultVal {
-		defaultChar = "y"
-	}
-	fmt.Printf("%s[%s]  %s\n", label, defaultStr, dim(fmt.Sprintf("输入 y/n，回车默认 (%s)", defaultChar)))
-	fmt.Print("  ")
-	reader := bufio.NewReader(os.Stdin)
-	input, _ := reader.ReadString('\n')
-	input = strings.TrimSpace(strings.ToLower(input))
-	if input == "" {
-		fmt.Printf("  → %s%s%s\n", colorGreen, defaultStr, colorReset)
-		return defaultVal
-	}
-	return input == "y" || input == "yes"
-}
-
-func confirmSettings() {
-	fmt.Println()
-	fmt.Printf("  %s回车确认启动，Ctrl+C 取消%s\n", colorDim, colorReset)
-	bufio.NewReader(os.Stdin).ReadString('\n')
 }
 
 func startServer() {
