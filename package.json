@@ -5,9 +5,10 @@
     "run": "./server/lansend",
     "dev": "concurrently \"vite\" \"./server/lansend --no-browser\"",
     "build:web": "tsc -b && vite build && node scripts/copy-dist.mjs",
-    "build:server": "cd server && CGO_ENABLED=1 go build -ldflags=\"-s -w\" -o lansend .",
+    "build:server": "cd server && CGO_ENABLED=1 go build -ldflags=\"-s -w -X 'main.version=v$(date +%Y.%m.%d | sed 's/\\\\.0/./g')' -X 'main.commitHash=$(git rev-parse --short HEAD)'\" -o lansend .",
     "build": "pnpm run build:web && pnpm run build:server",
-    "preview": "vite preview"
+    "tag": "git tag \"v$(date +%Y.%m.%d | sed 's/\\.0/./g')\"",
+    "release": "git push origin --tags"
   },
   "dependencies": {
     "highlight.js": "^11.11.1",

@@ -62,7 +62,9 @@ jobs:
           BIN=lansend
           if [ "${{ matrix.goos }}" = "windows" ]; then BIN=lansend.exe; fi
           cd server
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=${{ matrix.cgo }} go build -ldflags="-s -w" -o ../$BIN .
+          VERSION=v$(date +%Y.%m.%d | sed 's/\.0/./g')
+          HASH=$(git rev-parse --short HEAD)
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=${{ matrix.cgo }} go build -ldflags="-s -w -X 'main.version=${VERSION}' -X 'main.commitHash=${HASH}'" -o ../$BIN .
 
       - name: Package (Linux/macOS)
         if: matrix.goos != 'windows'

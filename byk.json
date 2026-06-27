@@ -1,7 +1,5 @@
 {
   "$var": {
-    "github": "https://github.com/fcbyk/lansend/releases/download",
-    "version": "v2026.06.26",
     "latest": "https://github.com/fcbyk/lansend/releases/latest/download"
   },
   "lansend": {
