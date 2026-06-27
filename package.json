@@ -3,11 +3,11 @@
   "type": "module",
   "scripts": {
     "run": "./server/lansend",
-    "dev": "concurrently \"vite\" \"./server/lansend --no-browser\"",
+    "dev": "concurrently \"vite\" \"./server/lansend -w\"",
     "build:web": "tsc -b && vite build && node scripts/copy-dist.mjs",
     "build:server": "cd server && CGO_ENABLED=1 go build -ldflags=\"-s -w -X 'main.version=v$(date +%Y.%m.%d | sed 's/\\\\.0/./g')' -X 'main.commitHash=$(git rev-parse --short HEAD)'\" -o lansend .",
     "build": "pnpm run build:web && pnpm run build:server",
-    "tag": "git tag \"v$(date +%Y.%m.%d | sed 's/\\.0/./g')\"",
+    "tag": "git tag \"v$(date +%Y.%m.%d | sed 's/\\.0/./g')\" && git tag",
     "release": "git push origin --tags"
   },
   "dependencies": {
