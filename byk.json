@@ -1,20 +1,19 @@
 {
   "$var": {
-    "latest": "https://github.com/fcbyk/lansend/releases/latest/download"
+    "latest": "[tar] https://github.com/fcbyk/lansend/releases/latest/download",
+    "github-latest-url": {
+      "darwin-arm64": "{latest}/lansend-darwin-arm64.tar.gz",
+      "darwin-x86_64": "{latest}/lansend-darwin-x86_64.tar.gz",
+      "linux-arm64": "{latest}/lansend-linux-arm64.tar.gz",
+      "linux-x86_64": "{latest}/lansend-linux-x86_64.tar.gz",
+      "windows-x64": "{latest}/lansend-windows-x64.zip"
+    }
   },
   "lansend": {
-    "bin-tar": {
-      "byk-lansend": {
-        "darwin-arm64": "{latest}/lansend-darwin-arm64.tar.gz",
-        "darwin-x86_64": "{latest}/lansend-darwin-x86_64.tar.gz",
-        "linux-arm64": "{latest}/lansend-linux-arm64.tar.gz",
-        "linux-x86_64": "{latest}/lansend-linux-x86_64.tar.gz",
-        "windows-x64": "{latest}/lansend-windows-x64.zip"
-      }
-    },
+    "downloads": "{github-latest-url}",
     "command": {
       "type": "bin",
-      "entry": "byk-lansend/lansend",
+      "entry": "lansend",
       "desc": "局域网文件共享"
     }
   }
