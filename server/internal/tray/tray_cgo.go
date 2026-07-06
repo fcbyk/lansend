@@ -4,7 +4,6 @@ package tray
 
 import (
 	"context"
-	_ "embed"
 	"fmt"
 	"log"
 	"net/http"
@@ -22,9 +21,6 @@ import (
 	"github.com/fcbyk/lansend/internal/upload"
 	"github.com/getlantern/systray"
 )
-
-//go:embed icon.png
-var iconData []byte
 
 type app struct {
 	mu         sync.Mutex

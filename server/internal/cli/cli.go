@@ -63,8 +63,11 @@ func PickDirectory() (string, error) {
 			return "", fmt.Errorf("no directory picker found (install zenity or kdialog)")
 		}
 	case "windows":
-		cmd = exec.Command("powershell", "-Command",
-			`Add-Type -AssemblyName System.Windows.Forms; $f=New-Object System.Windows.Forms.FolderBrowserDialog; $f.ShowDialog(); $f.SelectedPath`)
+		// ShowDialog() prints its return value to stdout, mixing with SelectedPath.
+		// $null = ... discards it so only the path is captured.
+		cmd = exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command",
+			`Add-Type -AssemblyName System.Windows.Forms; $f=New-Object System.Windows.Forms.FolderBrowserDialog; $null=$f.ShowDialog(); $f.SelectedPath`)
+		hideCmdWindow(cmd) // 隐藏 PowerShell 控制台窗口
 	default:
 		return "", fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}

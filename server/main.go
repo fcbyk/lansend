@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -48,6 +49,9 @@ var (
 )
 
 func main() {
+	// 禁用 Cobra 的 Windows 双击拦截，允许双击 exe 直接进入交互菜单
+	cobra.MousetrapHelpText = ""
+
 	versionStr := strings.TrimPrefix(version, "v")
 	if commitHash != "unknown" {
 		versionStr = fmt.Sprintf("%s (%s)", versionStr, commitHash)
@@ -408,6 +412,14 @@ func startServer() {
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Server error: %v", err)
 	}
+
+	// 非托盘模式下，服务停止后暂停等待用户确认退出
+	// Windows 上控制台窗口随进程退出而关闭，暂停避免一闪而过
+	if runtime.GOOS == "windows" {
+		fmt.Println()
+		fmt.Print("  服务已停止。按 Enter 键退出...")
+		bufio.NewReader(os.Stdin).ReadBytes('\n')
+	}
 }
 
 func runTray() {
@@ -418,11 +430,6 @@ func runTray() {
 			directory = "."
 		}
 	}
-
-	fmt.Println()
-	fmt.Println(" 托盘已启动，关闭终端不影响运行。")
-	fmt.Println(" 通过菜单栏图标控制服务器。")
-	fmt.Println()
 
 	cfg := &config.Config{
 		SharedDirectory: directory,
@@ -453,5 +460,20 @@ func runTray() {
 		}()
 	}
 
-	tray.Run(cfg, port)
+	fmt.Println()
+	fmt.Println(" 托盘已启动。")
+	fmt.Println()
+
+	// 启动托盘（goroutine），主线程等退出信号防止进程被杀
+	quitCh := make(chan struct{})
+	go func() {
+		tray.Run(cfg, port)
+		close(quitCh)
+	}()
+
+	// 短暂延迟让托盘图标出现，然后脱离控制台
+	time.Sleep(300 * time.Millisecond)
+	tray.FreeConsoleWindows()
+
+	<-quitCh
 }
