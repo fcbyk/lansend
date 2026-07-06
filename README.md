@@ -88,9 +88,9 @@ pnpm build:server
 pnpm build
 ```
 
-构建后的二进制文件位于 `server/lansend`。
+构建后的二进制文件位于 `server/lansend`（Windows 为 `server/lansend.exe`）。
 
-> Linux 不需要托盘功能时，可以关闭 CGO，编辑 `package.json` 中 `build:server` 脚本的 `CGO_ENABLED=1` 为 `CGO_ENABLED=0`。
+> Linux 不需要托盘功能时，可以关闭 CGO，将 `scripts/build-server.mjs` 中 `CGO_ENABLED: '1'` 改为 `CGO_ENABLED: '0'`。
 
 ## 使用方式
 
