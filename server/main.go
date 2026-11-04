@@ -464,16 +464,7 @@ func runTray() {
 	fmt.Println(" 托盘已启动。")
 	fmt.Println()
 
-	// 启动托盘（goroutine），主线程等退出信号防止进程被杀
-	quitCh := make(chan struct{})
-	go func() {
-		tray.Run(cfg, port)
-		close(quitCh)
-	}()
-
-	// 短暂延迟让托盘图标出现，然后脱离控制台
-	time.Sleep(300 * time.Millisecond)
-	tray.FreeConsoleWindows()
-
-	<-quitCh
+	// macOS 要求在 main goroutine 上调用 systray.Run()（Cocoa 初始化需要主线程）
+	// Windows 上也需要由 Run 内部处理控制台脱离
+	tray.Run(cfg, port)
 }

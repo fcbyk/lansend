@@ -80,6 +80,9 @@ func (a *app) onReady() {
 	go a.handleMenu(browserItem, dirItem, quitItem)
 
 	a.startServerLocked()
+
+	// 托盘就绪后脱离控制台（Windows 上关闭终端不停止服务，其他平台为 no-op）
+	FreeConsoleWindows()
 }
 
 func (a *app) handleMenu(browserItem, dirItem, quitItem *systray.MenuItem) {
