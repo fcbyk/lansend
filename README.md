@@ -17,18 +17,6 @@
 
 ## 安装
 
-### byk 插件安装（推荐）
-
-```bash
-byk add fcbyk/lansend
-```
-
-安装后即可运行：
-
-```bash
-byk lansend
-```
-
 ### 下载二进制
 
 从 [Releases](https://github.com/fcbyk/lansend/releases) 页面下载对应平台的二进制文件：
@@ -40,29 +28,6 @@ byk lansend
 | Windows (x64) | `lansend-windows-x64.zip` |
 | Linux (x86_64) | `lansend-linux-x86_64.tar.gz` |
 | Linux (ARM64) | `lansend-linux-arm64.tar.gz` |
-
-#### macOS / Linux
-
-```bash
-tar xzf lansend-darwin-arm64.tar.gz
-./lansend
-```
-
-如果提示"无法验证开发者"，在终端执行：
-
-```bash
-xattr -d com.apple.quarantine lansend
-```
-
-#### Windows
-
-解压 ZIP 后双击运行，或在命令行执行：
-
-```cmd
-lansend.exe
-```
-
-> Windows 首次运行可能被 SmartScreen 拦截，点击"更多信息" → "仍要运行"即可。
 
 ### 从源码构建
 
