@@ -26,17 +26,17 @@ jobs:
             goarch: arm64
             os: macos-14
             artifact: darwin-arm64
-            cgo: 1
+            cgo: 0
           - goos: darwin
             goarch: amd64
             os: macos-14
             artifact: darwin-x86_64
-            cgo: 1
+            cgo: 0
           - goos: windows
             goarch: amd64
             os: windows-2022
             artifact: windows-x64
-            cgo: 1
+            cgo: 0
 
     steps:
       - uses: actions/checkout@v4
@@ -67,7 +67,7 @@ jobs:
           cd server
           VERSION=${{ github.ref_name }}
           HASH=$(git rev-parse --short HEAD)
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=${{ matrix.cgo }} go build -ldflags="-s -w -X 'main.version=${VERSION}' -X 'main.commitHash=${HASH}'" -o ../$BIN .
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=${{ matrix.cgo }} go build -ldflags="-s -w -X 'main.version=${VERSION}' -X 'main.commitHash=${HASH}'" -o ../$BIN ./cmd/lansend
 
       - name: Package (Linux/macOS)
         if: matrix.goos != 'windows'
