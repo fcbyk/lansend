@@ -15,6 +15,11 @@ import (
 //go:embed all:frontend
 var assets embed.FS
 
+const (
+	windowWidth  = 420
+	windowHeight = 500
+)
+
 func main() {
 	var window *application.WebviewWindow
 	var showWindow func()
@@ -62,9 +67,15 @@ func main() {
 	ctrl.app = wailsApp
 
 	window = wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:  "Lansend",
-		Width:  1000,
-		Height: 618,
+		Title:               "Lansend",
+		Width:               windowWidth,
+		Height:              windowHeight,
+		MinWidth:            windowWidth,
+		MinHeight:           windowHeight,
+		MaxWidth:            windowWidth,
+		MaxHeight:           windowHeight,
+		DisableResize:       true,
+		MaximiseButtonState: application.ButtonHidden,
 	})
 
 	var savedX, savedY int
@@ -114,8 +125,7 @@ func main() {
 		wailsApp.Event.Emit("state", newView(srv.Config(), st))
 	})
 
-	// 启动失败（如端口被占用）不清场，错误随状态推给页面展示。
-	_ = srv.Start()
+	// 打开窗口时服务保持未启动，由用户在界面上确认目录与端口后自己点启动。
 
 	tray.Run()
 

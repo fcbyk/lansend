@@ -117,22 +117,28 @@ func (c *Controller) PickDirectory() (string, error) {
 	return dir, nil
 }
 
-// OpenInBrowser 在系统浏览器中打开局域网地址。
-func (c *Controller) OpenInBrowser() error {
+// OpenInBrowser 在系统浏览器中打开指定地址；url 为空时退回主局域网地址。
+func (c *Controller) OpenInBrowser(url string) error {
 	st := c.srv.State()
 	if !st.Running {
 		return fmt.Errorf("server is not running")
 	}
-	return platform.OpenBrowser(st.LANURL())
+	if url == "" {
+		url = st.LANURL()
+	}
+	return platform.OpenBrowser(url)
 }
 
-// CopyURL 把局域网地址写入剪贴板。
-func (c *Controller) CopyURL() error {
+// CopyURL 把指定地址写入剪贴板；url 为空时退回主局域网地址。
+func (c *Controller) CopyURL(url string) error {
 	st := c.srv.State()
 	if !st.Running {
 		return fmt.Errorf("server is not running")
 	}
-	return platform.CopyToClipboard(st.LANURL())
+	if url == "" {
+		url = st.LANURL()
+	}
+	return platform.CopyToClipboard(url)
 }
 
 func newView(cfg config.Config, st core.State) StateView {

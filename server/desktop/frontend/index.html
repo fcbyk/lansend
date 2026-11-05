@@ -15,65 +15,55 @@
 </head>
 <body>
   <main class="app">
-    <header class="head">
-      <div class="brand">
-        <h1>Lansend</h1>
-        <p class="sub">局域网文件分享</p>
-      </div>
+    <section class="status">
       <span id="status" class="badge">连接中…</span>
-    </header>
-
-    <div class="grid">
-      <section class="card">
-        <h2>共享设置</h2>
-
-        <div class="field">
-          <label for="directory">共享目录</label>
-          <div class="row">
-            <input id="directory" type="text" readonly />
-            <button id="pick" class="btn" type="button">选择…</button>
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="port">端口</label>
-          <div class="row">
-            <input id="port" type="number" min="1" max="65535" step="1" />
-            <button id="apply-port" class="btn" type="button">应用</button>
-          </div>
-        </div>
-
-        <h2>功能开关</h2>
-        <div class="toggles">
-          <label class="switch"><input id="download" type="checkbox" /><span>文件下载</span></label>
-          <label class="switch"><input id="upload" type="checkbox" /><span>文件上传</span></label>
-          <label class="switch"><input id="chat" type="checkbox" /><span>在线聊天</span></label>
-        </div>
-      </section>
-
-      <section class="card">
-        <div class="card-head">
-          <h2>访问地址</h2>
-          <div class="row">
-            <button id="copy" class="btn" type="button">复制</button>
-            <button id="open" class="btn" type="button">打开浏览器</button>
-          </div>
-        </div>
-
-        <ul id="urls" class="urls">
-          <li class="empty">服务未启动</li>
-        </ul>
-
-        <p class="hint">同一局域网内的设备打开上面的地址即可浏览、下载文件。</p>
-      </section>
-    </div>
-
-    <p id="error" class="error" hidden></p>
-
-    <footer class="foot">
-      <button id="toggle" class="btn primary" type="button">启动服务</button>
       <span id="hint" class="hint"></span>
-    </footer>
+    </section>
+
+    <section class="field">
+      <label for="directory">共享目录</label>
+      <div class="combo">
+        <input id="directory" type="text" readonly />
+        <button id="pick" class="combo-btn" type="button">选择</button>
+      </div>
+    </section>
+
+    <section class="field">
+      <label for="port">端口</label>
+      <input id="port" type="number" min="1" max="65535" step="1" inputmode="numeric" />
+    </section>
+
+    <section class="field">
+      <span class="label">功能</span>
+      <div class="pills">
+        <label class="pill">
+          <input id="download" type="checkbox" />
+          <span>下载</span>
+        </label>
+        <label class="pill">
+          <input id="upload" type="checkbox" />
+          <span>上传</span>
+        </label>
+        <label class="pill">
+          <input id="chat" type="checkbox" />
+          <span>聊天</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="addresses">
+      <div class="section-head">
+        <span class="label">访问地址</span>
+      </div>
+      <ul id="urls" class="urls">
+        <li class="empty">服务未启动</li>
+      </ul>
+    </section>
+
+    <section class="footer">
+      <p id="error" class="error" hidden></p>
+      <button id="toggle" class="btn primary block" type="button">启动服务</button>
+    </section>
   </main>
 
   <script type="module" src="app.js"></script>
