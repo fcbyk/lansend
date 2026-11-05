@@ -2,10 +2,21 @@ package platform
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
+
+// ExeDir 返回当前可执行文件所在目录。
+func ExeDir() (string, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Dir(exe), nil
+}
 
 func CopyToClipboard(text string) error {
 	var cmd *exec.Cmd
