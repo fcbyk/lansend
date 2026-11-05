@@ -75,6 +75,24 @@ bash scripts/build-mac-desktop.sh
 
 > Linux 不需要托盘功能时，可以关闭 CGO，将 `scripts/build-cli.mjs` 中 `CGO_ENABLED: '1'` 改为 `CGO_ENABLED: '0'`。
 
+#### 图标资源
+
+图标只有一个源文件 `server/internal/icon/icon.png`，派生产物已提交进仓库，日常构建无需重新生成：
+
+| 产物 | 用途 |
+|---|---|
+| `server/internal/icon/icon.ico` | 多尺寸 ICO，两个壳的托盘图标 |
+| `server/internal/icon/icon.icns` | macOS `.app` 的 Finder / Dock 图标 |
+| `server/desktop/rsrc_windows_*.syso` | Windows exe 的 PE 图标（资源管理器、任务栏） |
+
+更新图标后重新生成：
+
+```bash
+cd server/tools/iconres && go run .
+```
+
+该工具是独立的 Go module，不会被主模块导入，也不影响 `go build`。
+
 ## 使用方式
 
 ### 交互模式
