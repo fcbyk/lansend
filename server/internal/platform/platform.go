@@ -18,6 +18,27 @@ func ExeDir() (string, error) {
 	return filepath.Dir(exe), nil
 }
 
+// DownloadsDir 返回系统下载目录，目录不存在时返回错误。
+//
+// 这里用 ~/Downloads 这个约定路径：Windows 上即便被重定向到其他盘，
+// 用户主目录下通常会留有同名目录；取不到时由调用方决定回退策略。
+func DownloadsDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	dir := filepath.Join(home, "Downloads")
+	info, err := os.Stat(dir)
+	if err != nil {
+		return "", err
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("%s is not a directory", dir)
+	}
+	return dir, nil
+}
+
 func CopyToClipboard(text string) error {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {

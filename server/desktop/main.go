@@ -24,9 +24,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// 桌面端默认共享可执行文件所在目录，功能开关默认全关。
+	// 桌面端默认共享系统下载目录；取不到时退回可执行文件所在目录。
 	cfg := config.Default()
-	if dir, err := platform.ExeDir(); err == nil {
+	if dir, err := platform.DownloadsDir(); err == nil {
+		cfg.SharedDirectory = dir
+	} else if dir, err := platform.ExeDir(); err == nil {
 		cfg.SharedDirectory = dir
 	}
 
