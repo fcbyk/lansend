@@ -12,7 +12,10 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
-//go:embed all:frontend
+// 前端产物由 desktop-web/ 经 vite 构建而来（pnpm build:web:desktop）。
+// embed 只能引用当前包目录内的文件，所以目录位置是钉死的。
+//
+//go:embed all:frontend/dist
 var assets embed.FS
 
 const (
@@ -24,7 +27,8 @@ func main() {
 	var window *application.WebviewWindow
 	var showWindow func()
 
-	webFS, err := fs.Sub(assets, "frontend")
+	// embed 保留相对包目录的路径，资源根要下沉到 dist 才算对
+	webFS, err := fs.Sub(assets, "frontend/dist")
 	if err != nil {
 		log.Fatal(err)
 	}

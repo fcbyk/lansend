@@ -63,6 +63,11 @@ pnpm build:desktop
 bash scripts/build-mac-desktop.sh
 ```
 
+桌面端界面源码在 `desktop-web/`（React + TypeScript），由 `vite.desktop.config.ts` 构建到 `server/desktop/frontend/dist`，再用 `//go:embed` 打进二进制。因此：
+
+- `pnpm build:desktop` 已包含前端构建（类型检查 → vite → go build），一步到位
+- 单独执行 `go build ./desktop` 之前必须先跑过一次 `pnpm build:web:desktop`，否则编译期报 `no matching files found`（产物不进 git，这是刻意为之）
+
 所有 Go 二进制产物统一输出到 `build/`：
 
 | 壳 | Windows | Linux / macOS |

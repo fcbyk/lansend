@@ -1,10 +1,19 @@
 import { execSync } from 'child_process';
 import { resolve, delimiter, join } from 'path';
-import { mkdirSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 
 const rootDir = resolve(import.meta.dirname, '..');
 const serverDir = join(rootDir, 'server');
 const buildDir = join(rootDir, 'build');
+const assetDir = join(serverDir, 'desktop', 'frontend', 'dist');
+
+// 前端产物是 //go:embed 的输入，缺了就会在编译期报错。
+// 这里提前拦住并给出可执行的提示，比让 go 报 "no matching files" 清楚。
+if (!existsSync(join(assetDir, 'index.html'))) {
+  console.error(`缺少桌面端前端产物：${assetDir}`);
+  console.error('请先运行 pnpm build:web:desktop');
+  process.exit(1);
+}
 
 // Ensure Go is on PATH — common install locations on Windows
 const goPaths = [

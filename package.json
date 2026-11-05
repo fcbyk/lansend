@@ -5,8 +5,9 @@
     "run": "node scripts/run-server.mjs",
     "dev": "concurrently \"vite\" \"node scripts/run-server.mjs\"",
     "build:web": "tsc -b && vite build",
+    "build:web:desktop": "tsc -p desktop-web --noEmit && vite build --config vite.desktop.config.ts",
     "build:cli": "node scripts/build-cli.mjs",
-    "build:desktop": "node scripts/build-desktop.mjs",
+    "build:desktop": "pnpm run build:web:desktop && node scripts/build-desktop.mjs",
     "build": "pnpm run build:web && pnpm run build:cli",
     "tag": "node scripts/tag.mjs",
     "release": "git push origin --tags"
