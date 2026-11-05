@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { controller } from '../api'
 import type { StateView, URLView } from '../api'
-import { run } from '../store'
+import { act } from '../store'
 
 interface Props {
   view: StateView | null
-  busy: boolean
 }
 
 // 图标按钮：条目多时比文字按钮安静得多，功能靠 title 提示。
@@ -24,7 +23,7 @@ const ICON_OPEN = (
   </svg>
 )
 
-function AddressRow({ item, disabled }: { item: URLView; disabled: boolean }) {
+function AddressRow({ item }: { item: URLView }) {
   const [done, setDone] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -36,7 +35,7 @@ function AddressRow({ item, disabled }: { item: URLView; disabled: boolean }) {
   )
 
   const copy = () => {
-    void run(async () => {
+    void act(async () => {
       await controller.copyURL(item.url)
       setDone(true)
       if (timer.current) clearTimeout(timer.current)
@@ -45,7 +44,7 @@ function AddressRow({ item, disabled }: { item: URLView; disabled: boolean }) {
   }
 
   const open = () => {
-    void run(async () => {
+    void act(async () => {
       await controller.openInBrowser(item.url)
     })
   }
@@ -62,7 +61,6 @@ function AddressRow({ item, disabled }: { item: URLView; disabled: boolean }) {
           type="button"
           title="复制地址"
           aria-label="复制地址"
-          disabled={disabled}
           onClick={copy}
         >
           {ICON_COPY}
@@ -72,7 +70,6 @@ function AddressRow({ item, disabled }: { item: URLView; disabled: boolean }) {
           type="button"
           title="在浏览器打开"
           aria-label="在浏览器打开"
-          disabled={disabled}
           onClick={open}
         >
           {ICON_OPEN}
@@ -82,7 +79,7 @@ function AddressRow({ item, disabled }: { item: URLView; disabled: boolean }) {
   )
 }
 
-export function AddressList({ view, busy }: Props) {
+export function AddressList({ view }: Props) {
   const running = view?.running ?? false
   const urls = view?.urls ?? []
 
@@ -93,7 +90,7 @@ export function AddressList({ view, busy }: Props) {
     content = <li className="empty">未检测到局域网地址</li>
   } else {
     content = urls.map((item) => (
-      <AddressRow key={`${item.iface}|${item.url}`} item={item} disabled={busy} />
+      <AddressRow key={`${item.iface}|${item.url}`} item={item} />
     ))
   }
 

@@ -15,7 +15,7 @@ export function App() {
       <DirectoryField view={view} busy={busy} />
       <PortField view={view} busy={busy} />
       <FeaturePills view={view} busy={busy} />
-      <AddressList view={view} busy={busy} />
+      <AddressList view={view} />
       <Footer view={view} busy={busy} error={error} />
     </main>
   )

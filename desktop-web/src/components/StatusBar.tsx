@@ -1,11 +1,12 @@
 import type { StateView } from '../api'
+import type { BusyKey } from '../store'
 
 interface Props {
   view: StateView | null
-  busy: boolean
+  busy: BusyKey | null
 }
 
-function hintText(view: StateView | null, busy: boolean) {
+function hintText(view: StateView | null, busy: BusyKey | null) {
   if (!view) return ''
   if (busy) return '处理中…'
   if (view.running) return `本机访问 ${view.localUrl}`

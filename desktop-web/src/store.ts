@@ -3,14 +3,22 @@ import { useSyncExternalStore } from 'react'
 import { controller } from './api'
 import type { StateView } from './api'
 
+/**
+ * 正在进行的配置动作，null 表示空闲。
+ *
+ * 用具体动作而不是布尔值：启停服务时没必要把地址行的复制/打开一起变灰，
+ * 整块面板同时变色在小窗里看起来就像页面重载了一次。
+ */
+export type BusyKey = 'toggle' | 'port' | 'directory'
+
 export interface Snapshot {
   /** null 表示还没拿到第一份快照 */
   view: StateView | null
-  busy: boolean
+  busy: BusyKey | null
   error: string
 }
 
-let snapshot: Snapshot = { view: null, busy: false, error: '' }
+let snapshot: Snapshot = { view: null, busy: null, error: '' }
 const listeners = new Set<() => void>()
 
 function set(patch: Partial<Snapshot>) {
@@ -54,17 +62,30 @@ export async function refresh() {
   apply(await controller.getState())
 }
 
-/** 串行执行一次交互，期间 UI 进入忙碌态。 */
-export async function run(fn: () => Promise<void>) {
+/** 串行执行一次配置变更，期间由 key 标记是哪一个动作占用。 */
+export async function run(key: BusyKey, fn: () => Promise<void>) {
   if (snapshot.busy) return
-  set({ busy: true })
+  set({ busy: key })
   try {
     await fn()
     clearError()
   } catch (e) {
     showError(errorText(e))
   } finally {
-    set({ busy: false })
+    set({ busy: null })
+  }
+}
+
+/**
+ * 瞬时动作（复制地址、在浏览器打开）：不改配置、不重建服务，
+ * 因此不进忙碌态 —— 否则点一下复制，整条地址列表连带状态提示都要闪一次。
+ */
+export async function act(fn: () => Promise<void>) {
+  try {
+    await fn()
+    clearError()
+  } catch (e) {
+    showError(errorText(e))
   }
 }
 

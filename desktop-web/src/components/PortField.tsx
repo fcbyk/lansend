@@ -2,10 +2,11 @@ import { useEffect, useRef } from 'react'
 import { controller } from '../api'
 import type { StateView } from '../api'
 import { clearError, getSnapshot, refresh, run, showError } from '../store'
+import type { BusyKey } from '../store'
 
 interface Props {
   view: StateView | null
-  busy: boolean
+  busy: BusyKey | null
 }
 
 export function PortField({ view, busy }: Props) {
@@ -28,7 +29,15 @@ export function PortField({ view, busy }: Props) {
 
     const commit = () => {
       const next = Number.parseInt(input.value, 10)
-      const current = getSnapshot().view?.port
+      const snapshot = getSnapshot()
+      const current = snapshot.view?.port
+
+      // 有动作正在跑时这次提交会被队列丢掉，先把输入框还原，
+      // 免得界面上的端口和实际监听端口对不上。
+      if (snapshot.busy) {
+        if (current !== undefined) input.value = String(current)
+        return
+      }
 
       if (!Number.isInteger(next) || next < 1 || next > 65535) {
         showError('端口必须是 1 - 65535 之间的整数')
@@ -40,7 +49,7 @@ export function PortField({ view, busy }: Props) {
         clearError()
         return
       }
-      void run(async () => {
+      void run('port', async () => {
         await controller.setPort(next)
         await refresh()
       })
@@ -61,7 +70,7 @@ export function PortField({ view, busy }: Props) {
         max={65535}
         step={1}
         inputMode="numeric"
-        disabled={busy}
+        disabled={busy === 'port'}
         // 回车即提交：失焦会触发 change，避免再点一次别处
         onKeyDown={(event) => {
           if (event.key === 'Enter') event.currentTarget.blur()

@@ -153,8 +153,10 @@ input[readonly]:focus {
 }
 
 .combo-btn:disabled {
+  background: #10131a;
+  border-color: #1c1f29;
+  color: #4b5162;
   cursor: default;
-  opacity: 0.4;
 }
 
 .btn {
@@ -173,11 +175,6 @@ input[readonly]:focus {
 .btn:hover:not(:disabled) {
   background: #1e2330;
   border-color: #313849;
-}
-
-.btn:disabled {
-  cursor: default;
-  opacity: 0.4;
 }
 
 .btn.primary {
@@ -204,6 +201,17 @@ input[readonly]:focus {
 .btn.danger:hover:not(:disabled) {
   background: #d13b40;
   border-color: #d13b40;
+}
+
+/* 禁用态用颜色表达，不用 opacity：半透明会让整块面板一起暗一下，
+   在小窗里看起来就像页面闪了一次。 */
+.btn:disabled,
+.btn.primary:disabled,
+.btn.danger:disabled {
+  background: #1a1e28;
+  border-color: var(--border);
+  color: #565c6b;
+  cursor: default;
 }
 
 .btn.block {
@@ -252,11 +260,6 @@ input[readonly]:focus {
 .pill input:focus-visible + span {
   outline: 1px solid var(--accent);
   outline-offset: 1px;
-}
-
-.pill input:disabled + span {
-  opacity: 0.4;
-  cursor: default;
 }
 
 .addresses {
@@ -340,8 +343,10 @@ input[readonly]:focus {
 }
 
 .icon-btn:disabled {
+  background: #10131a;
+  border-color: #1c1f29;
+  color: #4b5162;
   cursor: default;
-  opacity: 0.4;
 }
 
 /* 复制成功的短暂反馈 */
