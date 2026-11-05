@@ -3,7 +3,7 @@
 // 输入：desktop/assets/icon.png（唯一的图标源文件）
 // 输出：
 //   - desktop/assets/icon.ico           多尺寸 ICO，供 embed 与 Windows 托盘使用
-//   - desktop/assets/icon.icns          macOS .app 用的 icns
+//   - desktop/assets/icon.icns          macOS .app 用的 icns（按 macOS 图标网格留白）
 //   - desktop/rsrc_windows_amd64.syso   Windows exe 的 PE 图标资源
 //   - desktop/rsrc_windows_arm64.syso
 //
@@ -21,11 +21,13 @@ import (
 	"flag"
 	"fmt"
 	"image"
-	_ "image/png"
+	"image/png"
+	"math"
 	"os"
 	"path/filepath"
 
 	"github.com/tc-hib/winres"
+	"golang.org/x/image/draw"
 )
 
 // PE 图标规格上限是 256，超过 winres 会直接报错。
@@ -82,8 +84,8 @@ func run(src, icoOut, icnsOut, sysoDir string) error {
 	}
 	fmt.Printf("写出: %s (%d 字节, %d 个尺寸)\n", icoOut, icoBuf.Len(), len(frames))
 
-	// 3. ICNS —— 复用 ICO 里的 PNG 帧，不做二次缩放
-	icns, err := buildICNS(frames)
+	// 3. ICNS —— 按 macOS 图标网格重新排版（源图直接参与缩放，不复用 ICO 帧）
+	icns, err := buildICNS(img)
 	if err != nil {
 		return err
 	}
@@ -166,10 +168,14 @@ func parseICO(data []byte) (map[int][]byte, error) {
 	return frames, nil
 }
 
-// buildICNS 组装 icns 容器。
+// macContentRatio 是 macOS 应用图标的内容占比：圆角矩形占画布的 824/1024，四周留白。
+// 不留白会让图标在 Dock / 启动台里比系统里的其他 App 明显偏大。
+const macContentRatio = 824.0 / 1024.0
+
+// buildICNS 按 macOS 图标网格重新排版后组装 icns 容器。
 // 条目类型按 macOS 的 PNG 型编码选：icp4=16, icp5=32, icp6=64, ic07=128, ic08=256。
 // 源图只有 209px，不做 512 以上的插值放大，避免 icns 里塞进无信息的虚像素。
-func buildICNS(frames map[int][]byte) ([]byte, error) {
+func buildICNS(src image.Image) ([]byte, error) {
 	table := []struct {
 		typ  string
 		size int
@@ -183,9 +189,9 @@ func buildICNS(frames map[int][]byte) ([]byte, error) {
 
 	entries := make([]icnsEntry, 0, len(table))
 	for _, t := range table {
-		data, ok := frames[t.size]
-		if !ok {
-			return nil, fmt.Errorf("ICO 中缺少 %dpx 帧，无法构造 icns", t.size)
+		data, err := composeMacIcon(src, t.size)
+		if err != nil {
+			return nil, err
 		}
 		entries = append(entries, icnsEntry{typ: t.typ, data: data})
 	}
@@ -209,3 +215,33 @@ func buildICNS(frames map[int][]byte) ([]byte, error) {
 
 	return out.Bytes(), nil
 }
+
+// composeMacIcon 把源图按比例缩放到 size×size 画布的内容区内并居中，返回 PNG 字节。
+// 非正方形源图保持宽高比，多余空间留成透明，避免被拉伸。
+func composeMacIcon(src image.Image, size int) ([]byte, error) {
+	dst := image.NewRGBA(image.Rect(0, 0, size, size))
+
+	sb := src.Bounds()
+	box := float64(size) * macContentRatio
+	scale := math.Min(box/float64(sb.Dx()), box/float64(sb.Dy()))
+
+	w := int(math.Round(float64(sb.Dx()) * scale))
+	h := int(math.Round(float64(sb.Dy()) * scale))
+	if w < 1 {
+		w = 1
+	}
+	if h < 1 {
+		h = 1
+	}
+
+	x0 := (size - w) / 2
+	y0 := (size - h) / 2
+	draw.CatmullRom.Scale(dst, image.Rect(x0, y0, x0+w, y0+h), src, sb, draw.Over, nil)
+
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, dst); err != nil {
+		return nil, fmt.Errorf("编码 %dpx PNG 失败: %w", size, err)
+	}
+	return buf.Bytes(), nil
+}
+
