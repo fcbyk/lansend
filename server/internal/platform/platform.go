@@ -1,13 +1,10 @@
 package platform
 
 import (
-	"context"
 	"fmt"
-	"net/http"
 	"os/exec"
 	"runtime"
 	"strings"
-	"time"
 )
 
 func CopyToClipboard(text string) error {
@@ -47,27 +44,4 @@ func OpenBrowser(url string) error {
 		return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}
 	return cmd.Start()
-}
-
-func WaitForServerReady(port int, timeout time.Duration) bool {
-	url := fmt.Sprintf("http://127.0.0.1:%d/", port)
-	deadline := time.Now().Add(timeout)
-
-	client := &http.Client{Timeout: 500 * time.Millisecond}
-	for time.Now().Before(deadline) {
-		req, err := http.NewRequestWithContext(context.Background(), "GET", url, nil)
-		if err != nil {
-			time.Sleep(50 * time.Millisecond)
-			continue
-		}
-		resp, err := client.Do(req)
-		if err == nil {
-			resp.Body.Close()
-			if resp.StatusCode == 200 {
-				return true
-			}
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	return false
 }

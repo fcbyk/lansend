@@ -133,13 +133,3 @@ func isPrivateIP(ip string) bool {
 	}
 	return false
 }
-
-func EnsurePortAvailable(port int, host string) error {
-	addr := fmt.Sprintf("%s:%d", host, port)
-	listener, err := net.Listen("tcp", addr)
-	if err != nil {
-		return fmt.Errorf("port %d on %s is already in use", port, host)
-	}
-	listener.Close()
-	return nil
-}

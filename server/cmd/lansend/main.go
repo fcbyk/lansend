@@ -2,21 +2,15 @@ package main
 
 import (
 	"bufio"
-	"context"
 	"fmt"
-	"log"
-	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/fcbyk/lansend/internal/config"
 	"github.com/fcbyk/lansend/internal/core"
-	"github.com/fcbyk/lansend/internal/network"
 	"github.com/fcbyk/lansend/internal/platform"
 
 	"github.com/spf13/cobra"
@@ -71,24 +65,6 @@ func main() {
 	}
 }
 
-func validateDirectory(dir string) (string, bool) {
-	abs, err := filepath.Abs(dir)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: cannot resolve directory %s\n", dir)
-		return "", false
-	}
-	info, err := os.Stat(abs)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: directory %s does not exist\n", abs)
-		return "", false
-	}
-	if !info.IsDir() {
-		fmt.Fprintf(os.Stderr, "Error: %s is not a directory\n", abs)
-		return "", false
-	}
-	return abs, true
-}
-
 func promptPassword() string {
 	fmt.Print("Upload password (press Enter to use default: 123456): ")
 	pwd, err := term.ReadPassword(int(os.Stdin.Fd()))
@@ -102,118 +78,64 @@ func promptPassword() string {
 	return string(pwd)
 }
 
-func printServerSummary(sharedDirectory string, port int, networks []network.InterfaceInfo, uploadPasswordEnabled bool) string {
+func printServerSummary(st core.State, sharedDirectory string, uploadPasswordEnabled bool) {
 	fmt.Println()
 	fmt.Printf(" Directory: %s\n", sharedDirectory)
 	if uploadPasswordEnabled {
 		fmt.Println(" Upload Password: Enabled")
 	}
 
-	fmt.Printf(" Local: \033[36mhttp://localhost:%d\033[0m\n", port)
-	fmt.Printf(" Local: \033[36mhttp://127.0.0.1:%d\033[0m\n", port)
+	fmt.Printf(" Local: \033[36m%s\033[0m\n", st.LocalURL())
+	fmt.Printf(" Local: \033[36mhttp://127.0.0.1:%d\033[0m\n", st.Port)
 
-	for _, net := range networks {
-		for _, ip := range net.IPs {
+	for _, iface := range st.Networks {
+		for _, ip := range iface.IPs {
 			if ip == "127.0.0.1" {
 				continue
 			}
-			fmt.Printf(" [%s] Network URL: \033[36mhttp://%s:%d\033[0m\n", net.Iface, ip, port)
+			fmt.Printf(" [%s] Network URL: \033[36mhttp://%s:%d\033[0m\n", iface.Iface, ip, st.Port)
 		}
 	}
 
-	var localIP string
-	if len(networks) > 0 && len(networks[0].IPs) > 0 {
-		localIP = networks[0].IPs[0]
-	}
-
-	url := fmt.Sprintf("http://localhost:%d", port)
-	if localIP != "" {
-		url = fmt.Sprintf("http://%s:%d", localIP, port)
-	}
-
-	if err := platform.CopyToClipboard(url); err != nil {
+	if err := platform.CopyToClipboard(st.LANURL()); err != nil {
 		fmt.Printf(" Warning: Could not copy URL to clipboard (%v)\n", err)
 	} else {
 		fmt.Println(" URL has been copied to clipboard")
 	}
 
 	fmt.Println()
-	return url
-}
-
-func checkPort(port int) bool {
-	if err := network.EnsurePortAvailable(port, "0.0.0.0"); err != nil {
-		fmt.Fprintf(os.Stderr, " Error: %v\n", err)
-		fmt.Fprintf(os.Stderr, " Please choose another port (e.g. --port %d).\n\n", port+1)
-		return false
-	}
-	return true
 }
 
 func run(_ *cobra.Command, _ []string) {
-	// 未指定 -d 时默认共享当前工作目录
-	if directory == "" {
-		if wd, err := os.Getwd(); err == nil {
-			directory = wd
-		} else {
-			directory = "."
-		}
+	cfg := config.Default()
+	cfg.Port = port
+	cfg.SharedDirectory = directory
+	cfg.UploadPassword = uploadPassword
+	cfg.DownloadEnabled = download
+	cfg.UploadEnabled = enableUpload
+	cfg.ChatEnabled = chatEnabled
+
+	if password && enableUpload && cfg.UploadPassword == "" {
+		cfg.UploadPassword = promptPassword()
 	}
 
-	startServer()
-}
-
-func startServer() {
-	sharedDirectory, ok := validateDirectory(directory)
-	if !ok {
+	srv := core.New(cfg)
+	if err := srv.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, " Error: %v\n", err)
+		fmt.Fprintf(os.Stderr, " Please choose another port (e.g. --port %d) or another directory.\n\n", port+1)
 		os.Exit(1)
 	}
 
-	if !checkPort(port) {
-		os.Exit(1)
+	running := srv.Config()
+	st := srv.State()
+	printServerSummary(st, running.SharedDirectory, running.UploadPassword != "")
+
+	if browser {
+		platform.OpenBrowser(st.LANURL())
 	}
 
-	if password && enableUpload && uploadPassword == "" {
-		uploadPassword = promptPassword()
-	}
-
-	networks := network.GetPrivateNetworks()
-	url := printServerSummary(sharedDirectory, port, networks, uploadPassword != "")
-
-	cfg := &config.Config{
-		SharedDirectory: sharedDirectory,
-		UploadPassword:  uploadPassword,
-		DownloadEnabled: download,
-		UploadEnabled:   enableUpload,
-		ChatEnabled:     chatEnabled,
-	}
-
-	server := &http.Server{
-		Addr:    fmt.Sprintf("0.0.0.0:%d", port),
-		Handler: core.BuildHandler(cfg),
-	}
-
-	if browser && url != "" {
-		go func() {
-			if platform.WaitForServerReady(port, 10*time.Second) {
-				platform.OpenBrowser(url)
-			}
-		}()
-	}
-
-	go func() {
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-		<-sigCh
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		server.Shutdown(ctx)
-	}()
-
-	log.Printf("Server starting on http://0.0.0.0:%d\n", port)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("Server error: %v", err)
-	}
+	waitForSignal()
+	_ = srv.Stop()
 
 	// 服务停止后暂停等待用户确认退出
 	// Windows 上控制台窗口随进程退出而关闭，暂停避免一闪而过
@@ -222,4 +144,10 @@ func startServer() {
 		fmt.Print("  服务已停止。按 Enter 键退出...")
 		bufio.NewReader(os.Stdin).ReadBytes('\n')
 	}
+}
+
+func waitForSignal() {
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	<-sigCh
 }
