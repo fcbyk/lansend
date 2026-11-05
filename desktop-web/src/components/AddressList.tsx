@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { controller } from '../api'
 import type { StateView } from '../api'
 import { act } from '../store'
+import { QrPanel } from './QrPanel'
 
 interface Props {
   view: StateView | null
@@ -43,6 +44,16 @@ const ICON_CHEV = (
   </svg>
 )
 
+const ICON_QR = (
+  <svg viewBox="0 0 16 16" aria-hidden="true">
+    <rect x="2" y="2" width="4.8" height="4.8" rx="1.1" />
+    <rect x="9.2" y="2" width="4.8" height="4.8" rx="1.1" />
+    <rect x="2" y="9.2" width="4.8" height="4.8" rx="1.1" />
+    <rect x="9.4" y="9.4" width="1.7" height="1.7" fill="currentColor" stroke="none" />
+    <rect x="12.1" y="12.1" width="1.7" height="1.7" fill="currentColor" stroke="none" />
+  </svg>
+)
+
 function hostOf(url: string) {
   try {
     return new URL(url).hostname
@@ -76,6 +87,7 @@ export function AddressList({ view }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [done, setDone] = useState(false)
   const [panelMax, setPanelMax] = useState<number>()
+  const [qrUrl, setQrUrl] = useState<string>()
   const cardRef = useRef<HTMLLIElement>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -178,6 +190,18 @@ export function AddressList({ view }: Props) {
             >
               {ICON_OPEN}
             </button>
+            <button
+              className="icon-btn"
+              type="button"
+              title="显示二维码"
+              aria-label="显示二维码"
+              onClick={() => {
+                setExpanded(false)
+                setQrUrl(selected.url)
+              }}
+            >
+              {ICON_QR}
+            </button>
           </div>
         </div>
 
@@ -224,6 +248,7 @@ export function AddressList({ view }: Props) {
         </button>
       </div>
       <ul className="urls">{body}</ul>
+      {qrUrl ? <QrPanel url={qrUrl} onClose={() => setQrUrl(undefined)} /> : null}
     </section>
   )
 }
