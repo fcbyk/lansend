@@ -37,8 +37,6 @@ var (
 var (
 	port           int
 	directory      string
-	useExeDir      bool
-	useWorkDir     bool
 	password       bool
 	uploadPassword string
 	browser        bool
@@ -49,7 +47,7 @@ var (
 )
 
 func main() {
-	// 禁用 Cobra 的 Windows 双击拦截，允许双击 exe 直接进入交互菜单
+	// 禁用 Cobra 的 Windows 双击拦截，允许双击 exe 直接启动服务
 	cobra.MousetrapHelpText = ""
 
 	versionStr := strings.TrimPrefix(version, "v")
@@ -66,8 +64,6 @@ func main() {
 	rootCmd.SetVersionTemplate("lansend {{.Version}}\n")
 
 	rootCmd.Flags().StringVarP(&directory, "directory", "d", "", "Directory to share (default: current directory)")
-	rootCmd.Flags().BoolVarP(&useExeDir, "exe", "e", false, "Use executable directory")
-	rootCmd.Flags().BoolVarP(&useWorkDir, "work", "w", false, "Use current working directory")
 	rootCmd.Flags().IntVarP(&port, "port", "p", 80, "Web server port")
 	rootCmd.Flags().BoolVarP(&download, "download", "1", false, "Enable download functionality")
 	rootCmd.Flags().BoolVarP(&enableUpload, "upload", "2", false, "Enable upload functionality")
@@ -161,177 +157,22 @@ func checkPort(port int) bool {
 	return true
 }
 
-// getExeDir returns the directory containing the running executable.
-func getExeDir() string {
-	if exePath, err := os.Executable(); err == nil {
-		return filepath.Dir(exePath)
-	}
-	if wd, err := os.Getwd(); err == nil {
-		return wd
-	}
-	return "."
-}
-
-func run(cmd *cobra.Command, args []string) {
+func run(_ *cobra.Command, _ []string) {
 	if trayMode {
 		runTray()
 		return
 	}
 
-	hasPath := cmd.Flags().Changed("directory") ||
-		cmd.Flags().Changed("exe") ||
-		cmd.Flags().Changed("work")
-
-	hasFlags := cmd.Flags().Changed("port") ||
-		cmd.Flags().Changed("password") || cmd.Flags().Changed("browser") ||
-		cmd.Flags().Changed("download") || cmd.Flags().Changed("upload") ||
-		cmd.Flags().Changed("chat")
-
-	if !hasPath && !hasFlags {
-		runInteractive()
-		return
-	}
-
-	if !hasPath {
-		fmt.Fprintln(os.Stderr, "Error: must specify a directory: -d /path, -e (exe dir), or -w (work dir)")
-		os.Exit(1)
-	}
-
-	// Resolve directory
-	if cmd.Flags().Changed("directory") {
-		// already set by pflag
-	} else if cmd.Flags().Changed("work") {
+	// 未指定 -d 时默认共享当前工作目录
+	if directory == "" {
 		if wd, err := os.Getwd(); err == nil {
 			directory = wd
 		} else {
 			directory = "."
 		}
-	} else if cmd.Flags().Changed("exe") {
-		directory = getExeDir()
 	}
 
 	startServer()
-}
-
-
-// ── Interactive Mode ──────────────────────
-
-func runInteractive() {
-	fmt.Print(`
-   _         _     _   _  ____                    _ 
-  | |       / \   | \ | |/ ___|   ___  _ __    __| |
-  | |      / _ \  |  \| |\___ \  / _ \| '_ \  / _` + "`" + ` |
-  | |___  / ___ \ | |\  | ___) ||  __/| | | || (_| |
-  |_____|/_/   \_\|_| \_||____/  \___||_| |_| \__,_|
-`)
-	fmt.Println()
-	if commitHash != "unknown" {
-		fmt.Printf("  %s (%s)", version, commitHash)
-	} else {
-		fmt.Printf("  %s", version)
-	}
-	fmt.Println()
-	fmt.Println()
-	fmt.Println("  Directory (required):")
-	fmt.Println("    e   exe dir    ── 可执行文件所在目录")
-	fmt.Println("    w   work dir   ── 当前工作目录")
-	fmt.Println()
-	fmt.Println("  Features:")
-	fmt.Println("    1   download   ── 启用文件下载")
-	fmt.Println("    2   upload     ── 启用文件上传")
-	fmt.Println("    3   chat       ── 启用聊天")
-	fmt.Println("    4   password   ── 设置上传密码")
-	fmt.Println("    b   browser    ── 自动打开浏览器")
-	fmt.Println("    t   tray       ── 系统托盘模式（关闭终端不停止服务）")
-	fmt.Println()
-	fmt.Println("  提示: 将想开启的选项字母拼在一起输入即可，如:")
-	fmt.Println("    et      ── exe目录 + 托盘模式（推荐）")
-	fmt.Println("    w1b     ── 工作目录 + 下载 + 打开浏览器")
-	fmt.Println("    et123   ── exe目录 + 托盘 + 下载/上传/聊天")
-	fmt.Println()
-
-	for {
-		fmt.Print("  请输入选项组合 [默认: et]: ")
-
-		input, err := bufio.NewReader(os.Stdin).ReadString('\n')
-		if err != nil {
-			fmt.Println("  读取输入失败，请重试。")
-			continue
-		}
-		input = strings.TrimSpace(input)
-
-		// 用户直接回车，使用默认值：exe dir + tray mode
-		if input == "" {
-			input = "et"
-		}
-
-		hasE := strings.ContainsRune(input, 'e')
-		hasW := strings.ContainsRune(input, 'w')
-		if !hasE && !hasW {
-			fmt.Println("  错误: 必须选择目录，输入 e (exe dir) 或 w (work dir)")
-			continue
-		}
-		if hasE && hasW {
-			fmt.Println("  错误: e 和 w 不能同时使用，请只选一个")
-			continue
-		}
-
-		// 重置所有状态变量
-		port = 80
-		directory = ""
-		download = false
-		enableUpload = false
-		chatEnabled = false
-		password = false
-		browser = false
-		trayMode = false
-		uploadPassword = ""
-
-		validInput := true
-		for _, ch := range input {
-			switch ch {
-			case 'e':
-				directory = getExeDir()
-			case 'w':
-				if wd, err := os.Getwd(); err == nil {
-					directory = wd
-				} else {
-					directory = "."
-				}
-			case '1':
-				download = true
-			case '2':
-				enableUpload = true
-			case '3':
-				chatEnabled = true
-			case '4':
-				password = true
-			case 'b':
-				browser = true
-			case 't':
-				trayMode = true
-			default:
-				fmt.Printf("  忽略无效选项: '%c'\n", ch)
-				validInput = false
-			}
-		}
-		if !validInput {
-			fmt.Println("  有效选项: e w 1 2 3 4 b t，请重新输入。")
-			continue
-		}
-
-		break
-	}
-
-	if password && enableUpload {
-		uploadPassword = promptPassword()
-	}
-
-	if trayMode {
-		runTray()
-	} else {
-		startServer()
-	}
 }
 
 func startServer() {
@@ -413,7 +254,7 @@ func startServer() {
 		log.Fatalf("Server error: %v", err)
 	}
 
-	// 非托盘模式下，服务停止后暂停等待用户确认退出
+	// 服务停止后暂停等待用户确认退出
 	// Windows 上控制台窗口随进程退出而关闭，暂停避免一闪而过
 	if runtime.GOOS == "windows" {
 		fmt.Println()

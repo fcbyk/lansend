@@ -3,7 +3,7 @@
   "type": "module",
   "scripts": {
     "run": "node scripts/run-server.mjs",
-    "dev": "concurrently \"vite\" \"node scripts/run-server.mjs -w\"",
+    "dev": "concurrently \"vite\" \"node scripts/run-server.mjs\"",
     "build:web": "tsc -b && vite build",
     "build:cli": "node scripts/build-cli.mjs",
     "build:desktop": "node scripts/build-desktop.mjs",
