@@ -71,7 +71,7 @@ bash scripts/build-mac-desktop.sh
 | A | `build/lansend.exe` | `build/lansend` |
 | B | `build/lansend-desktop.exe` | `build/lansend-desktop`（macOS 另打包为 `build/lansend.app`） |
 
-> 构建脚本一律使用显式包路径（`.` 与 `./desktop`）。**不要使用 `go build ./...`**：它会同时编译桌面端，在缺少 GTK/webkit2gtk 的 Linux 环境会失败。
+> 构建脚本一律使用显式包路径（`./cmd/lansend` 与 `./desktop`）。**不要使用 `go build ./...`**：它会同时编译桌面端，在缺少 GTK/webkit2gtk 的 Linux 环境会失败。
 
 > Linux 不需要托盘功能时，可以关闭 CGO，将 `scripts/build-cli.mjs` 中 `CGO_ENABLED: '1'` 改为 `CGO_ENABLED: '0'`。
 

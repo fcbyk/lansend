@@ -38,8 +38,8 @@ const outputPath = join(buildDir, outputName);
 
 mkdirSync(buildDir, { recursive: true });
 
-// 显式包路径 "."：禁止使用 ./...，否则会把 ./desktop 一起编（Linux 缺 GTK 会失败）
-const cmd = `go build -ldflags="${ldflags}" -o "${outputPath}" .`;
+// 显式包路径 "./cmd/lansend"：禁止使用 ./...，否则会把 ./desktop 一起编（Linux 缺 GTK 会失败）
+const cmd = `go build -ldflags="${ldflags}" -o "${outputPath}" ./cmd/lansend`;
 
 console.log(`Building CLI with: CGO_ENABLED=1 ${cmd}`);
 console.log(`  version    = ${version}`);
