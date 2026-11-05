@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"image"
+	"image/color"
 	"image/png"
 	"math"
 	"os"
@@ -37,7 +38,7 @@ var icoSizes = []int{256, 128, 64, 48, 32, 24, 16}
 const icoResourceID = winres.ID(1)
 
 // icnsEntry 是一个 icns 条目：4 字节类型 + 4 字节长度（含 8 字节头）+ 数据。
-// 对于 icp4..icp6 / ic07..ic10 这些类型，数据部分直接就是 PNG 流。
+// ic04/ic05/ic06 的数据是 ARGB（PackBits），ic07..ic14 的数据直接就是 PNG 流。
 type icnsEntry struct {
 	typ  string
 	data []byte
@@ -173,25 +174,38 @@ func parseICO(data []byte) (map[int][]byte, error) {
 const macContentRatio = 824.0 / 1024.0
 
 // buildICNS 按 macOS 图标网格重新排版后组装 icns 容器。
-// 条目类型按 macOS 的 PNG 型编码选：icp4=16, icp5=32, icp6=64, ic07=128, ic08=256。
+//
+// 条目类型不能随便挑：
+//   - 16px 必须写成 ic04（ARGB + PackBits）。macOS 不解码 icp4/icp5/icp6 里的
+//     PNG，而是把这些字节当成原始像素，于是 Finder 列表、分栏、废纸篓等小尺寸
+//     场景会显示成彩色噪点；Dock / 启动台用的是 128px 以上的槽位，所以看起来正常。
+//   - 32px 及以上用现代 PNG 槽位：ic11=32, ic12=64, ic07=128, ic08=256。
+//
 // 源图只有 209px，不做 512 以上的插值放大，避免 icns 里塞进无信息的虚像素。
 func buildICNS(src image.Image) ([]byte, error) {
 	table := []struct {
 		typ  string
 		size int
+		argb bool
 	}{
-		{"icp4", 16},
-		{"icp5", 32},
-		{"icp6", 64},
-		{"ic07", 128},
-		{"ic08", 256},
+		{"ic04", 16, true},  // 16x16 @1x
+		{"ic11", 32, false}, // 16x16 @2x
+		{"ic12", 64, false}, // 32x32 @2x
+		{"ic07", 128, false},
+		{"ic08", 256, false},
 	}
 
 	entries := make([]icnsEntry, 0, len(table))
 	for _, t := range table {
-		data, err := composeMacIcon(src, t.size)
-		if err != nil {
-			return nil, err
+		img := composeMacIcon(src, t.size)
+		var data []byte
+		if t.argb {
+			data = encodeARGB(img)
+		} else {
+			var err error
+			if data, err = encodePNG(img, t.size); err != nil {
+				return nil, err
+			}
 		}
 		entries = append(entries, icnsEntry{typ: t.typ, data: data})
 	}
@@ -216,9 +230,9 @@ func buildICNS(src image.Image) ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-// composeMacIcon 把源图按比例缩放到 size×size 画布的内容区内并居中，返回 PNG 字节。
+// composeMacIcon 把源图按比例缩放到 size×size 画布的内容区内并居中。
 // 非正方形源图保持宽高比，多余空间留成透明，避免被拉伸。
-func composeMacIcon(src image.Image, size int) ([]byte, error) {
+func composeMacIcon(src image.Image, size int) *image.RGBA {
 	dst := image.NewRGBA(image.Rect(0, 0, size, size))
 
 	sb := src.Bounds()
@@ -238,10 +252,87 @@ func composeMacIcon(src image.Image, size int) ([]byte, error) {
 	y0 := (size - h) / 2
 	draw.CatmullRom.Scale(dst, image.Rect(x0, y0, x0+w, y0+h), src, sb, draw.Over, nil)
 
+	return dst
+}
+
+// encodePNG 把画布编码成 icns 现代 PNG 槽位（ic07、ic08、ic11、ic12…）用的数据。
+func encodePNG(img image.Image, size int) ([]byte, error) {
 	var buf bytes.Buffer
-	if err := png.Encode(&buf, dst); err != nil {
+	if err := png.Encode(&buf, img); err != nil {
 		return nil, fmt.Errorf("编码 %dpx PNG 失败: %w", size, err)
 	}
 	return buf.Bytes(), nil
 }
 
+// encodeARGB 把画布编码成 ic04/ic05 使用的 ARGB 数据：
+// 4 字节魔数 "ARGB" + A/R/G/B 四个平面，每个平面各自做 PackBits 压缩。
+// 这是 iconutil 的输出格式，macOS 会按原始像素解码。
+func encodeARGB(img *image.RGBA) []byte {
+	b := img.Bounds()
+	planes := make([][]byte, 4)
+	for i := range planes {
+		planes[i] = make([]byte, 0, b.Dx()*b.Dy())
+	}
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			// image.RGBA 是预乘 alpha；ARGB 槽位存的是非预乘通道，这里转回来。
+			c := color.NRGBAModel.Convert(img.At(x, y)).(color.NRGBA)
+			planes[0] = append(planes[0], c.A)
+			planes[1] = append(planes[1], c.R)
+			planes[2] = append(planes[2], c.G)
+			planes[3] = append(planes[3], c.B)
+		}
+	}
+
+	out := make([]byte, 0, 4+b.Dx()*b.Dy())
+	out = append(out, 'A', 'R', 'G', 'B')
+	for _, p := range planes {
+		out = append(out, packBits(p)...)
+	}
+	return out
+}
+
+// packBits 是 ic04/ic05 使用的 PackBits 变体（与 iconutil 一致）：
+// 控制字节 n < 0x80 表示后面跟 n+1 个字面量；n >= 0x80 表示重复下一个字节
+// n-0x7D 次（3..130）。0xFF 单独用来编码超过 130 的长游程。
+func packBits(data []byte) []byte {
+	out := make([]byte, 0, len(data))
+	lit := make([]byte, 0, 128)
+	flush := func() {
+		if len(lit) == 0 {
+			return
+		}
+		out = append(out, byte(len(lit)-1))
+		out = append(out, lit...)
+		lit = lit[:0]
+	}
+
+	for i := 0; i < len(data); {
+		x := data[i]
+		if i+2 < len(data) && data[i+1] == x && data[i+2] == x {
+			flush()
+			run := 3
+			for i+run < len(data) && data[i+run] == x {
+				run++
+			}
+			i += run
+			for run > 130 {
+				out = append(out, 0xFF, x)
+				run -= 130
+			}
+			if run > 2 {
+				out = append(out, byte(run+0x7D), x)
+			} else {
+				i -= run // 不足 3 个的尾巴交给字面量分支
+			}
+		} else {
+			lit = append(lit, x)
+			if len(lit) > 127 {
+				flush()
+			}
+			i++
+		}
+	}
+	flush()
+	return out
+}
