@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/fcbyk/lansend/internal/config"
 	"github.com/fcbyk/lansend/internal/core"
@@ -105,6 +106,11 @@ func (c *Controller) PickDirectory() (string, error) {
 		ButtonText:           "选择",
 	}).PromptForSingleSelection()
 	if err != nil {
+		// 取消对话框在各平台都以 error 形式上抛（Windows 是 "cancelled by user"）。
+		// 用户只是关掉了窗口，不该在页面上弹一条红色报错。
+		if isDialogCancelled(err) {
+			return "", nil
+		}
 		return "", err
 	}
 	if dir == "" {
@@ -115,6 +121,14 @@ func (c *Controller) PickDirectory() (string, error) {
 		return "", err
 	}
 	return dir, nil
+}
+
+// isDialogCancelled 判断错误是否只是「用户关掉了对话框」。
+//
+// Wails 没有导出跨平台的取消错误：Windows 用的是内部包里的
+// cfd.ErrorCancelled，其他平台多半直接回空路径，所以这里按文案兜底。
+func isDialogCancelled(err error) bool {
+	return err != nil && strings.Contains(strings.ToLower(err.Error()), "cancel")
 }
 
 // OpenInBrowser 在系统浏览器中打开指定地址；url 为空时退回主局域网地址。
