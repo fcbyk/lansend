@@ -1,14 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"embed"
-	"image"
-	"image/color"
-	"image/png"
 	"io/fs"
 	"log"
 
+	"github.com/fcbyk/lansend/internal/icon"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
@@ -28,6 +25,7 @@ func main() {
 	app := application.New(application.Options{
 		Name:        "gui",
 		Description: "Lansend GUI",
+		Icon:        icon.Data(),
 		Assets: application.AssetOptions{
 			Handler: application.BundledAssetFileServer(webFS),
 		},
@@ -70,7 +68,7 @@ func main() {
 	}
 
 	tray := app.SystemTray.New()
-	tray.SetIcon(generateTrayIcon())
+	tray.SetIcon(icon.Data())
 	tray.SetTooltip("Lansend")
 
 	tray.OnClick(func() {
@@ -97,20 +95,4 @@ func main() {
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func generateTrayIcon() []byte {
-	img := image.NewRGBA(image.Rect(0, 0, 32, 32))
-	cx, cy, r := 16, 16, 14
-	for y := 0; y < 32; y++ {
-		for x := 0; x < 32; x++ {
-			dx, dy := x-cx, y-cy
-			if dx*dx+dy*dy <= r*r {
-				img.Set(x, y, color.RGBA{64, 128, 255, 255})
-			}
-		}
-	}
-	var buf bytes.Buffer
-	png.Encode(&buf, img)
-	return buf.Bytes()
 }

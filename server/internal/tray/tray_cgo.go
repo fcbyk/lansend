@@ -15,6 +15,7 @@ import (
 	"github.com/fcbyk/lansend/internal/cli"
 	"github.com/fcbyk/lansend/internal/config"
 	"github.com/fcbyk/lansend/internal/files"
+	"github.com/fcbyk/lansend/internal/icon"
 	"github.com/fcbyk/lansend/internal/network"
 	"github.com/fcbyk/lansend/internal/spa"
 	"github.com/fcbyk/lansend/internal/speedtest"
@@ -54,7 +55,7 @@ func Run(cfg *config.Config, port int) {
 }
 
 func (a *app) onReady() {
-	systray.SetIcon(iconData)
+	systray.SetIcon(icon.Data())
 	systray.SetTooltip("lansend - LAN File Sharing")
 
 	a.dirStatusItem = systray.AddMenuItem("共享目录: "+a.cfg.SharedDirectory, "当前共享目录")
