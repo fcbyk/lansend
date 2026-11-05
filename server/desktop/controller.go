@@ -26,6 +26,8 @@ type Controller struct {
 type URLView struct {
 	Iface string `json:"iface"`
 	URL   string `json:"url"`
+	// Virtual 标记 VMware / WSL 这类虚拟网卡，页面据此加个标签，免得和真实网卡混淆。
+	Virtual bool `json:"virtual"`
 }
 
 // StateView 是给页面的扁平快照，合并了配置与运行状态。
@@ -75,6 +77,14 @@ func (c *Controller) SetPort(port int) error {
 		return fmt.Errorf("port must be between 1 and 65535")
 	}
 	return c.srv.Apply(func(cfg *config.Config) { cfg.Port = port })
+}
+
+// RefreshNetworks 重新枚举网卡并推送一次快照。
+//
+// Wi-Fi 换网络、插拔网线之后地址会变，服务没法自己察觉，交给页面上的刷新按钮触发。
+func (c *Controller) RefreshNetworks() error {
+	c.srv.RefreshNetworks()
+	return nil
 }
 
 // SetFeature 切换功能开关，name 取 download / upload / chat。
@@ -166,7 +176,9 @@ func newView(cfg config.Config, st core.State) StateView {
 		PasswordSet:     cfg.UploadPassword != "",
 		LocalURL:        st.LocalURL(),
 		LANURL:          st.LANURL(),
-		Error:           st.Err,
+		// 空切片而不是 nil：nil 序列化成 null，页面拿到 null 再 .map 就炸了
+		URLs:  []URLView{},
+		Error: st.Err,
 	}
 
 	for _, iface := range st.Networks {
@@ -175,8 +187,9 @@ func newView(cfg config.Config, st core.State) StateView {
 				continue
 			}
 			v.URLs = append(v.URLs, URLView{
-				Iface: iface.Iface,
-				URL:   fmt.Sprintf("http://%s:%d", ip, st.Port),
+				Iface:   iface.Iface,
+				URL:     fmt.Sprintf("http://%s:%d", ip, st.Port),
+				Virtual: iface.Virtual,
 			})
 		}
 	}

@@ -86,6 +86,18 @@ func (s *Server) Apply(mutate func(*config.Config)) error {
 	return errors.Join(stopErr, startErr)
 }
 
+// RefreshNetworks 重新枚举网卡并广播一次状态。
+//
+// 服务启动后才持有网卡快照，而 Wi-Fi 换网、插拔网线都会让它过期；
+// 页面上的刷新按钮走这里更新，不必为此重启服务。
+func (s *Server) RefreshNetworks() {
+	s.mu.Lock()
+	s.nets = network.GetPrivateNetworks()
+	st := s.stateLocked()
+	s.mu.Unlock()
+	s.emit(st)
+}
+
 // State 返回当前状态快照。
 func (s *Server) State() State {
 	s.mu.Lock()

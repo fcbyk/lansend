@@ -12,6 +12,9 @@ interface Props {
 export function PortField({ view, busy }: Props) {
   const ref = useRef<HTMLInputElement>(null)
   const port = view?.port
+  // 端口在运行中不可改：改端口等于重建服务，运行到一半改容易让人以为
+  // 服务还在旧端口上。要换端口就先停下。
+  const locked = (view?.running ?? false) || busy !== null
 
   // 快照更新时回填输入框，但用户正在编辑就不打断
   useEffect(() => {
@@ -32,9 +35,9 @@ export function PortField({ view, busy }: Props) {
       const snapshot = getSnapshot()
       const current = snapshot.view?.port
 
-      // 有动作正在跑时这次提交会被队列丢掉，先把输入框还原，
+      // 运行中（或有动作正在跑，提交会被队列丢掉）时还原输入框，
       // 免得界面上的端口和实际监听端口对不上。
-      if (snapshot.busy) {
+      if (snapshot.busy || snapshot.view?.running) {
         if (current !== undefined) input.value = String(current)
         return
       }
@@ -70,7 +73,7 @@ export function PortField({ view, busy }: Props) {
         max={65535}
         step={1}
         inputMode="numeric"
-        disabled={busy === 'port'}
+        disabled={locked}
         // 回车即提交：失焦会触发 change，避免再点一次别处
         onKeyDown={(event) => {
           if (event.key === 'Enter') event.currentTarget.blur()

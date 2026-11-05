@@ -4,6 +4,8 @@ import { Call } from '@wailsio/runtime'
 export interface URLView {
   iface: string
   url: string
+  /** VMware / WSL 之类的虚拟网卡，页面上打个标签 */
+  virtual: boolean
 }
 
 /** 配置与运行状态的扁平快照，对应 Go 侧的 StateView。 */
@@ -36,6 +38,7 @@ export const controller = {
   stop: () => call<void>('Stop'),
   setPort: (port: number) => call<void>('SetPort', port),
   setFeature: (name: FeatureName, enabled: boolean) => call<void>('SetFeature', name, enabled),
+  refreshNetworks: () => call<void>('RefreshNetworks'),
   pickDirectory: () => call<string>('PickDirectory'),
   copyURL: (url: string) => call<void>('CopyURL', url),
   openInBrowser: (url: string) => call<void>('OpenInBrowser', url),

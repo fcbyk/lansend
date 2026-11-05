@@ -15,6 +15,38 @@
   box-sizing: border-box;
 }
 
+/* 滚动条：跟 src 网页端那套一致（透明轨道 + 圆角滑块），窗口只有 420 宽，
+   所以再细一号；Windows 原生的 17px 亮色滚动条在这里非常突兀。 */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* 原生滚动条两端的箭头一并去掉 */
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
@@ -29,40 +61,28 @@ body {
   display: flex;
   flex-direction: column;
   gap: 15px;
-  height: 100vh;
+  height: 100%;
+  /* 窗口里不该出现任何「整页滚动」：所有溢出都裁掉，交给内部容器各自滚 */
+  overflow: hidden;
   padding: 16px 18px;
 }
 
-.status {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.badge {
+/* 运行中：跟在「访问地址」标题后面。停止时不显示任何状态字，
+   下面的「服务未启动」已经说明白了。 */
+.live {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  flex: none;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.badge::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  flex: none;
-  border-radius: 50%;
-  background: #565c6b;
-}
-
-.badge.on {
+  gap: 5px;
+  margin-left: 8px;
   color: var(--ok);
 }
 
-.badge.on::before {
+.live::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
   background: var(--ok);
   box-shadow: 0 0 0 3px rgba(61, 220, 132, 0.15);
 }
@@ -121,6 +141,15 @@ input[readonly]:focus {
   border-color: var(--border);
 }
 
+/* 锁定态（服务运行中不能改端口）：压暗但保持可读，和禁用按钮同一套颜色 */
+input[type="text"]:disabled,
+input[type="number"]:disabled {
+  background: #10131a;
+  border-color: #1c1f29;
+  color: #565c6b;
+  cursor: default;
+}
+
 /* 内嵌文字按钮的输入框：按钮贴在框内右侧 */
 .combo {
   position: relative;
@@ -128,33 +157,35 @@ input[readonly]:focus {
 }
 
 .combo input {
-  padding-right: 62px;
+  padding-right: 46px;
 }
 
+/* 运行中「选择」被收起，右侧不再需要留白 */
+.combo.locked input {
+  padding-right: 10px;
+}
+
+/* 输入框右侧的内嵌按钮：只要一行字，不要边框和底色 */
 .combo-btn {
   position: absolute;
-  top: 3px;
-  right: 3px;
-  bottom: 3px;
+  top: 0;
+  right: 0;
+  bottom: 0;
   padding: 0 11px;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  background: #1b2029;
-  color: var(--text);
+  border: none;
+  background: none;
+  color: var(--accent);
   font: inherit;
   font-size: 12px;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: color 0.15s ease;
 }
 
 .combo-btn:hover:not(:disabled) {
-  background: #232936;
-  border-color: #313849;
+  color: #7fb0ff;
 }
 
 .combo-btn:disabled {
-  background: #10131a;
-  border-color: #1c1f29;
   color: #4b5162;
   cursor: default;
 }
@@ -262,11 +293,14 @@ input[readonly]:focus {
   outline-offset: 1px;
 }
 
+/* 地址区排在最上面（状态行之下）。不主动撑开：内容短时保持自身高度，
+   把多余的空间留给底部按钮；内容长（候选网卡多）时再被压缩到剩余高度，
+   由卡片内部的列表承担滚动。 */
 .addresses {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
 }
 
@@ -277,30 +311,170 @@ input[readonly]:focus {
   gap: 8px;
 }
 
+.section-head .icon-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+}
+
+.section-head .icon-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
 .urls {
   list-style: none;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  overflow-y: auto;
+  flex: 1 1 auto;
   min-height: 0;
+  /* 候选列表是浮层，不能被这里裁掉 */
+  overflow: visible;
 }
 
-.urls li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+/* 一行就是一张卡片：当前地址；网卡候选从它下面浮出，盖住表单而不是挤走它们 */
+.urls > li {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 7px;
-  padding: 6px 8px 6px 10px;
   font-size: 12.5px;
 }
 
-.urls .iface {
-  color: var(--muted);
-  font-size: 11.5px;
+.urls > li.addr {
+  position: relative;
+}
+
+.addr-main {
+  display: flex;
   flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 10px;
+}
+
+.iface-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  max-width: 96px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.iface-btn .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.iface-btn:hover:not(:disabled) .name {
+  color: var(--text);
+}
+
+.iface-btn:disabled {
+  cursor: default;
+}
+
+.iface-btn svg {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.15s ease;
+}
+
+.addr.open .iface-btn svg {
+  transform: rotate(180deg);
+}
+
+/* 虚拟网卡标签：VMware / WSL 之类，容易和真实网卡看混 */
+.tag {
+  flex: none;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: #1e2330;
+  color: #6b7385;
+  font-size: 10px;
+  line-height: 15px;
+}
+
+/* 候选浮层：绝对定位在地址行下方，覆盖下面的表单。
+   高度由 JS 算（到底部按钮之上为止），放得下就一次全显示，放不下才内部滚。 */
+.options {
+  position: absolute;
+  top: 100%;
+  right: -1px;
+  left: -1px;
+  z-index: 20;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+  overflow-y: auto;
+  /* 滚到底就停住，不要顺着把手外层/整页一起滚 */
+  overscroll-behavior: contain;
+}
+
+.opt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  overflow: hidden;
+  /* 稍微压扁一点：12 个网卡正好能在一次展开里全部显示，不用滚 */
+  padding: 4px 6px;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.opt:hover {
+  background: #1b2029;
+  color: var(--text);
+}
+
+.opt.active {
+  color: var(--accent);
+}
+
+.opt-iface {
+  flex: none;
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.opt-url {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 11.5px;
+  white-space: nowrap;
 }
 
 .urls .url {
@@ -366,8 +540,11 @@ input[readonly]:focus {
 }
 
 .urls .empty {
-  color: var(--muted);
+  display: flex;
+  align-items: center;
   justify-content: center;
+  padding: 10px;
+  color: var(--muted);
   border-style: dashed;
   background: transparent;
 }
@@ -376,17 +553,8 @@ input[readonly]:focus {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.hint {
-  margin-left: auto;
-  min-width: 0;
-  color: var(--muted);
-  font-size: 11.5px;
-  text-align: right;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* 按钮始终贴在窗口底部，中间的空隙留在表单下方 */
+  margin-top: auto;
 }
 
 .error {
@@ -397,4 +565,40 @@ input[readonly]:focus {
   font-size: 12px;
   padding: 8px 10px;
   word-break: break-all;
+}
+
+/* 渲染异常兜底：把错误直接画在窗口里，别让用户对着一片黑 */
+.crash {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100vh;
+  padding: 16px 18px;
+}
+
+.crash h1 {
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.crash pre {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: #10131a;
+  color: #ff9d9d;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
+.crash .btn {
+  align-self: flex-start;
 }

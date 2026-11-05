@@ -9,6 +9,10 @@ interface Props {
 }
 
 export function DirectoryField({ view, busy }: Props) {
+  // 运行中直接把「选择」收起来：共享目录在运行中改动同样要重建服务，
+  // 留一个可点的按钮只会让人以为随时能换。
+  const locked = view?.running ?? false
+
   const pick = () => {
     void run('directory', async () => {
       const dir = await controller.pickDirectory()
@@ -19,17 +23,19 @@ export function DirectoryField({ view, busy }: Props) {
   return (
     <section className="field">
       <label htmlFor="directory">共享目录</label>
-      <div className="combo">
+      <div className={locked ? 'combo locked' : 'combo'}>
         <input id="directory" type="text" readOnly value={view?.directory ?? ''} />
-        <button
-          id="pick"
-          className="combo-btn"
-          type="button"
-          disabled={busy === 'directory'}
-          onClick={pick}
-        >
-          选择
-        </button>
+        {locked ? null : (
+          <button
+            id="pick"
+            className="combo-btn"
+            type="button"
+            disabled={busy !== null}
+            onClick={pick}
+          >
+            选择
+          </button>
+        )}
       </div>
     </section>
   )

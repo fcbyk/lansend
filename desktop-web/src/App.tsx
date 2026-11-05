@@ -3,7 +3,6 @@ import { DirectoryField } from './components/DirectoryField'
 import { FeaturePills } from './components/FeaturePills'
 import { Footer } from './components/Footer'
 import { PortField } from './components/PortField'
-import { StatusBar } from './components/StatusBar'
 import { useSnapshot } from './store'
 
 export function App() {
@@ -11,11 +10,10 @@ export function App() {
 
   return (
     <main className="app">
-      <StatusBar view={view} busy={busy} />
+      <AddressList view={view} />
       <DirectoryField view={view} busy={busy} />
       <PortField view={view} busy={busy} />
       <FeaturePills view={view} busy={busy} />
-      <AddressList view={view} />
       <Footer view={view} busy={busy} error={error} />
     </main>
   )

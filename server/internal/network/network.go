@@ -58,6 +58,12 @@ func GetPrivateNetworks() []InterfaceInfo {
 
 	var results []InterfaceInfo
 	for _, iface := range interfaces {
+		// 没启用的网卡（拔了网线、Wi-Fi 关了、手动禁用）不该出现在地址里，
+		// 它们可能还挂着旧 IP，看着像是能访问。
+		if iface.Flags&net.FlagUp == 0 {
+			continue
+		}
+
 		addrs, err := iface.Addrs()
 		if err != nil {
 			continue
