@@ -6,6 +6,11 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [tailwindcss(), react()],
+  build: {
+    // 直接输出到 Go 的 embed 目录，省掉一次复制
+    outDir: 'server/embeddist/dist',
+    emptyOutDir: true,
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),

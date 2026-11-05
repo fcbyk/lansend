@@ -48,7 +48,7 @@
 # 安装前端依赖
 pnpm install
 
-# 构建前端并复制到 server/embeddist/
+# 构建前端（直接输出到 server/embeddist/dist）
 pnpm build:web
 
 # 构建壳 A（CLI + 托盘，含版本信息）
