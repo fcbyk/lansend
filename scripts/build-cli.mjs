@@ -1,7 +1,10 @@
 import { execSync } from 'child_process';
 import { resolve, delimiter, join } from 'path';
+import { mkdirSync } from 'fs';
 
-const serverDir = resolve(import.meta.dirname, '..', 'server');
+const rootDir = resolve(import.meta.dirname, '..');
+const serverDir = join(rootDir, 'server');
+const buildDir = join(rootDir, 'build');
 
 // Ensure Go is on PATH — common install locations on Windows
 const goPaths = [
@@ -31,10 +34,14 @@ try {
 const ldflags = `-s -w -X 'main.version=${version}' -X 'main.commitHash=${commitHash}'`;
 
 const outputName = process.platform === 'win32' ? 'lansend.exe' : 'lansend';
+const outputPath = join(buildDir, outputName);
 
-const cmd = `go build -ldflags="${ldflags}" -o ${outputName} .`;
+mkdirSync(buildDir, { recursive: true });
 
-console.log(`Building server with: CGO_ENABLED=1 ${cmd}`);
+// 显式包路径 "."：禁止使用 ./...，否则会把 ./desktop 一起编（Linux 缺 GTK 会失败）
+const cmd = `go build -ldflags="${ldflags}" -o "${outputPath}" .`;
+
+console.log(`Building CLI with: CGO_ENABLED=1 ${cmd}`);
 console.log(`  version    = ${version}`);
 console.log(`  commitHash = ${commitHash}`);
 
@@ -44,4 +51,4 @@ execSync(cmd, {
   stdio: 'inherit',
 });
 
-console.log('Server build complete ✓');
+console.log(`CLI build complete ✓ -> ${outputPath}`);

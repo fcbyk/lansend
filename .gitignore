@@ -4,13 +4,9 @@ node_modules/
 # Build output
 dist/
 dist-ssr/
-!gui/frontend/dist/
 
 # Go binary
-lansend
-lansend.exe
-lansend.app
-gui/gui.exe
+build/
 
 # IDE / Editor
 .idea/

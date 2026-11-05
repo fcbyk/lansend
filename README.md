@@ -39,6 +39,11 @@
 
 #### 构建步骤
 
+项目包含两个独立的可执行程序，同属一个 Go module（`server/`）：
+
+- **壳 A**：CLI + 系统托盘 → `lansend`
+- **壳 B**：桌面端（Wails）→ `lansend-desktop`
+
 ```bash
 # 安装前端依赖
 pnpm install
@@ -46,16 +51,29 @@ pnpm install
 # 构建前端并复制到 server/embeddist/
 pnpm build:web
 
-# 构建服务端（含版本信息）
-pnpm build:server
+# 构建壳 A（CLI + 托盘，含版本信息）
+pnpm build:cli
 
-# 一步构建
+# 一步构建（前端 + 壳 A）
 pnpm build
+
+# 构建壳 B（桌面端，不包含在 pnpm build 内）
+pnpm build:desktop
+
+# 构建 macOS .app 包（在 macOS 上执行）
+bash scripts/build-mac-desktop.sh
 ```
 
-构建后的二进制文件位于 `server/lansend`（Windows 为 `server/lansend.exe`）。
+所有 Go 二进制产物统一输出到 `build/`：
 
-> Linux 不需要托盘功能时，可以关闭 CGO，将 `scripts/build-server.mjs` 中 `CGO_ENABLED: '1'` 改为 `CGO_ENABLED: '0'`。
+| 壳 | Windows | Linux / macOS |
+|---|---|---|
+| A | `build/lansend.exe` | `build/lansend` |
+| B | `build/lansend-desktop.exe` | `build/lansend-desktop`（macOS 另打包为 `build/lansend.app`） |
+
+> 构建脚本一律使用显式包路径（`.` 与 `./desktop`）。**不要使用 `go build ./...`**：它会同时编译桌面端，在缺少 GTK/webkit2gtk 的 Linux 环境会失败。
+
+> Linux 不需要托盘功能时，可以关闭 CGO，将 `scripts/build-cli.mjs` 中 `CGO_ENABLED: '1'` 改为 `CGO_ENABLED: '0'`。
 
 ## 使用方式
 

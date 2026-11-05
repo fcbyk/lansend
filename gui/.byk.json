@@ -1,4 +1,0 @@
-{
-    "build": "go build -ldflags=\"-H windowsgui\" -o gui.exe .",
-    "build:mac": "bash build-mac.sh"
-}

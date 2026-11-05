@@ -1,21 +1,23 @@
 #!/bin/bash
 set -e
 
-cd "$(dirname "$0")"
+# 仓库根目录（本脚本位于 scripts/ 下）
+cd "$(dirname "$0")/.."
 
 APP_NAME="Lansend"
-BIN_NAME="gui"
-BUNDLE_DIR="${BIN_NAME}.app"
+BIN_NAME="lansend-desktop"
+BUILD_DIR="build"
+BUNDLE_DIR="${BUILD_DIR}/lansend.app"
 
 echo "==> 编译 Go 二进制..."
-go build -o "${BIN_NAME}" .
+node scripts/build-desktop.mjs
 
 echo "==> 创建 .app 打包结构..."
 rm -rf "${BUNDLE_DIR}"
 mkdir -p "${BUNDLE_DIR}/Contents/MacOS"
 mkdir -p "${BUNDLE_DIR}/Contents/Resources"
 
-cp "${BIN_NAME}" "${BUNDLE_DIR}/Contents/MacOS/${BIN_NAME}"
+cp "${BUILD_DIR}/${BIN_NAME}" "${BUNDLE_DIR}/Contents/MacOS/${BIN_NAME}"
 chmod +x "${BUNDLE_DIR}/Contents/MacOS/${BIN_NAME}"
 
 cat > "${BUNDLE_DIR}/Contents/Info.plist" << EOF
@@ -49,5 +51,4 @@ cat > "${BUNDLE_DIR}/Contents/Info.plist" << EOF
 </plist>
 EOF
 
-rm -f "${BIN_NAME}"
 echo "==> 完成: ${BUNDLE_DIR}"

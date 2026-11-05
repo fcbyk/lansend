@@ -6,24 +6,30 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"io/fs"
 	"log"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
-//go:embed all:frontend/dist
+//go:embed all:frontend
 var assets embed.FS
 
 func main() {
 	var window *application.WebviewWindow
 	var showWindow func()
 
+	webFS, err := fs.Sub(assets, "frontend")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	app := application.New(application.Options{
 		Name:        "gui",
 		Description: "Lansend GUI",
 		Assets: application.AssetOptions{
-			Handler: application.BundledAssetFileServer(assets),
+			Handler: application.BundledAssetFileServer(webFS),
 		},
 		Windows: application.WindowsOptions{
 			DisableQuitOnLastWindowClosed: true,
@@ -88,8 +94,7 @@ func main() {
 
 	tray.Run()
 
-	err := app.Run()
-	if err != nil {
+	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
 }
