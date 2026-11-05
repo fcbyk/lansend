@@ -14,14 +14,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/fcbyk/lansend/internal/chat"
-	"github.com/fcbyk/lansend/internal/cli"
 	"github.com/fcbyk/lansend/internal/config"
-	"github.com/fcbyk/lansend/internal/files"
+	"github.com/fcbyk/lansend/internal/core"
 	"github.com/fcbyk/lansend/internal/network"
-	"github.com/fcbyk/lansend/internal/spa"
-	"github.com/fcbyk/lansend/internal/speedtest"
-	"github.com/fcbyk/lansend/internal/upload"
+	"github.com/fcbyk/lansend/internal/platform"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -135,7 +131,7 @@ func printServerSummary(sharedDirectory string, port int, networks []network.Int
 		url = fmt.Sprintf("http://%s:%d", localIP, port)
 	}
 
-	if err := cli.CopyToClipboard(url); err != nil {
+	if err := platform.CopyToClipboard(url); err != nil {
 		fmt.Printf(" Warning: Could not copy URL to clipboard (%v)\n", err)
 	} else {
 		fmt.Println(" URL has been copied to clipboard")
@@ -192,42 +188,15 @@ func startServer() {
 		ChatEnabled:     chatEnabled,
 	}
 
-	fileService := &files.Service{Config: cfg}
-
-	mux := http.NewServeMux()
-
-	spa.RegisterRoutes(mux)
-
-	mux.HandleFunc("GET /api/config", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		fmt.Fprintf(w, `{"code":200,"message":"success","data":{"download_enabled":%t,"upload_enabled":%t,"chat_enabled":%t}}`,
-			cfg.DownloadEnabled, cfg.UploadEnabled, cfg.ChatEnabled)
-	})
-
-	files.RegisterRoutes(mux, fileService)
-
-	if cfg.UploadEnabled {
-		upload.RegisterRoutes(mux, &upload.Service{
-			FileService: fileService,
-			Config:      cfg,
-		})
-	}
-
-	if cfg.ChatEnabled {
-		chat.RegisterRoutes(mux, chat.NewService(chat.NewStore(1000)))
-	}
-
-	speedtest.RegisterRoutes(mux)
-
 	server := &http.Server{
 		Addr:    fmt.Sprintf("0.0.0.0:%d", port),
-		Handler: mux,
+		Handler: core.BuildHandler(cfg),
 	}
 
 	if browser && url != "" {
 		go func() {
-			if cli.WaitForServerReady(port, 10*time.Second) {
-				cli.OpenBrowser(url)
+			if platform.WaitForServerReady(port, 10*time.Second) {
+				platform.OpenBrowser(url)
 			}
 		}()
 	}
