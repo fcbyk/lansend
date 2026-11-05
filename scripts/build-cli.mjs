@@ -41,13 +41,13 @@ mkdirSync(buildDir, { recursive: true });
 // 显式包路径 "./cmd/lansend"：禁止使用 ./...，否则会把 ./desktop 一起编（Linux 缺 GTK 会失败）
 const cmd = `go build -ldflags="${ldflags}" -o "${outputPath}" ./cmd/lansend`;
 
-console.log(`Building CLI with: CGO_ENABLED=1 ${cmd}`);
+console.log(`Building CLI with: CGO_ENABLED=0 ${cmd}`);
 console.log(`  version    = ${version}`);
 console.log(`  commitHash = ${commitHash}`);
 
 execSync(cmd, {
   cwd: serverDir,
-  env: { ...process.env, CGO_ENABLED: '1' },
+  env: { ...process.env, CGO_ENABLED: '0' },
   stdio: 'inherit',
 });
 

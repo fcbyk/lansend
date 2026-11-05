@@ -21,7 +21,6 @@ import (
 	"github.com/fcbyk/lansend/internal/network"
 	"github.com/fcbyk/lansend/internal/spa"
 	"github.com/fcbyk/lansend/internal/speedtest"
-	"github.com/fcbyk/lansend/internal/tray"
 	"github.com/fcbyk/lansend/internal/upload"
 
 	"github.com/spf13/cobra"
@@ -43,7 +42,6 @@ var (
 	download       bool
 	enableUpload   bool
 	chatEnabled    bool
-	trayMode       bool
 )
 
 func main() {
@@ -70,7 +68,6 @@ func main() {
 	rootCmd.Flags().BoolVarP(&chatEnabled, "chat", "3", false, "Enable chat functionality")
 	rootCmd.Flags().BoolVarP(&password, "password", "4", false, "Prompt to set upload password")
 	rootCmd.Flags().BoolVarP(&browser, "browser", "b", false, "Enable automatic browser opening")
-	rootCmd.Flags().BoolVarP(&trayMode, "tray", "t", false, "Start in system tray mode")
 	rootCmd.Flags().SortFlags = false
 
 	if err := rootCmd.Execute(); err != nil {
@@ -158,11 +155,6 @@ func checkPort(port int) bool {
 }
 
 func run(_ *cobra.Command, _ []string) {
-	if trayMode {
-		runTray()
-		return
-	}
-
 	// 未指定 -d 时默认共享当前工作目录
 	if directory == "" {
 		if wd, err := os.Getwd(); err == nil {
@@ -261,51 +253,4 @@ func startServer() {
 		fmt.Print("  服务已停止。按 Enter 键退出...")
 		bufio.NewReader(os.Stdin).ReadBytes('\n')
 	}
-}
-
-func runTray() {
-	if directory == "" {
-		if wd, err := os.Getwd(); err == nil {
-			directory = wd
-		} else {
-			directory = "."
-		}
-	}
-
-	cfg := &config.Config{
-		SharedDirectory: directory,
-		UploadPassword:  uploadPassword,
-		DownloadEnabled: download,
-		UploadEnabled:   enableUpload,
-		ChatEnabled:     chatEnabled,
-	}
-
-	if browser {
-		url := fmt.Sprintf("http://localhost:%d", port)
-		networks := network.GetPrivateNetworks()
-		for _, n := range networks {
-			if n.Virtual {
-				continue
-			}
-			for _, ip := range n.IPs {
-				if ip != "127.0.0.1" {
-					url = fmt.Sprintf("http://%s:%d", ip, port)
-					break
-				}
-			}
-		}
-		go func() {
-			if cli.WaitForServerReady(port, 10*time.Second) {
-				cli.OpenBrowser(url)
-			}
-		}()
-	}
-
-	fmt.Println()
-	fmt.Println(" 托盘已启动。")
-	fmt.Println()
-
-	// macOS 要求在 main goroutine 上调用 systray.Run()（Cocoa 初始化需要主线程）
-	// Windows 上也需要由 Run 内部处理控制台脱离
-	tray.Run(cfg, port)
 }

@@ -10,7 +10,6 @@
 - **文件上传** — 拖拽上传（支持文件夹拖入）、分片上传、进度显示、上传密码保护
 - **在线聊天** — 局域网设备间实时文字聊天
 - **网速测试** — Ping 延迟、上传/下载速率测试
-- **系统托盘** — macOS / Windows 托盘模式，关闭终端也不影响运行
 - **响应式布局** — 桌面端左右分栏（可拖拽调整宽度），移动端 Tab 切换
 - **剪贴板复制** — 自动复制局域网访问地址
 - **跨平台** — 支持 macOS、Windows、Linux
@@ -41,7 +40,7 @@
 
 项目包含两个独立的可执行程序，同属一个 Go module（`server/`）：
 
-- **壳 A**：CLI + 系统托盘 → `lansend`
+- **壳 A**：CLI（纯控制台）→ `lansend`
 - **壳 B**：桌面端（Wails）→ `lansend-desktop`
 
 ```bash
@@ -51,7 +50,7 @@ pnpm install
 # 构建前端（直接输出到 server/embeddist/dist）
 pnpm build:web
 
-# 构建壳 A（CLI + 托盘，含版本信息）
+# 构建壳 A（CLI，含版本信息）
 pnpm build:cli
 
 # 一步构建（前端 + 壳 A）
@@ -73,15 +72,13 @@ bash scripts/build-mac-desktop.sh
 
 > 构建脚本一律使用显式包路径（`./cmd/lansend` 与 `./desktop`）。**不要使用 `go build ./...`**：它会同时编译桌面端，在缺少 GTK/webkit2gtk 的 Linux 环境会失败。
 
-> Linux 不需要托盘功能时，可以关闭 CGO，将 `scripts/build-cli.mjs` 中 `CGO_ENABLED: '1'` 改为 `CGO_ENABLED: '0'`。
-
 #### 图标资源
 
 图标只有一个源文件 `server/internal/icon/icon.png`，派生产物已提交进仓库，日常构建无需重新生成：
 
 | 产物 | 用途 |
 |---|---|
-| `server/internal/icon/icon.ico` | 多尺寸 ICO，两个壳的托盘图标 |
+| `server/internal/icon/icon.ico` | 多尺寸 ICO，桌面端托盘与 Windows exe 图标 |
 | `server/internal/icon/icon.icns` | macOS `.app` 的 Finder / Dock 图标 |
 | `server/desktop/rsrc_windows_*.syso` | Windows exe 的 PE 图标（资源管理器、任务栏） |
 
@@ -130,7 +127,6 @@ lansend --help
 | `--chat` | `-3` | `false` | 启用聊天功能 |
 | `--password` | `-4` | `false` | 提示设置上传密码 |
 | `--browser` | `-b` | `false` | 启动后自动打开浏览器 |
-| `--tray` | `-t` | `false` | 系统托盘模式 |
 
 ## 开发
 
@@ -143,7 +139,7 @@ Vite 开发服务器会代理 API 请求到 Go 后端（默认 80 端口）。�
 
 ## 技术栈
 
-- **后端**：Go 标准库 `net/http`（Go 1.22+ 增强路由）、[cobra](https://github.com/spf13/cobra)（CLI）、[systray](https://github.com/getlantern/systray)（系统托盘）
+- **后端**：Go 标准库 `net/http`（Go 1.22+ 增强路由）、[cobra](https://github.com/spf13/cobra)（CLI）
 - **前端**：React 19、TypeScript、Vite 8、Tailwind CSS 4、Lucide Icons
 - **代码高亮**：[highlight.js](https://highlightjs.org/)
 - **部署**：前端 SPA 通过 Go `embed.FS` 内嵌到二进制，单一文件部署

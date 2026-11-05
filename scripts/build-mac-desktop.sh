@@ -20,7 +20,7 @@ mkdir -p "${BUNDLE_DIR}/Contents/Resources"
 cp "${BUILD_DIR}/${BIN_NAME}" "${BUNDLE_DIR}/Contents/MacOS/${BIN_NAME}"
 chmod +x "${BUNDLE_DIR}/Contents/MacOS/${BIN_NAME}"
 
-# Finder / Dock 图标。由 server/tools/iconres 从同一份 PNG 生成，与两个壳的托盘图标同源。
+# Finder / Dock 图标。由 server/tools/iconres 从同一份 PNG 生成，与托盘图标同源。
 ICNS_SRC="server/internal/icon/icon.icns"
 if [ ! -f "${ICNS_SRC}" ]; then
     echo "错误: 缺少 ${ICNS_SRC}，请先在 server/tools/iconres 执行 go run ." >&2
