@@ -1,9 +1,9 @@
 // Command iconres 从单张 PNG 生成所有平台需要的图标资源。
 //
-// 输入：internal/icon/icon.png（唯一的图标源文件）
+// 输入：desktop/assets/icon.png（唯一的图标源文件）
 // 输出：
-//   - internal/icon/icon.ico            多尺寸 ICO，供 embed 与 Windows 托盘使用
-//   - internal/icon/icon.icns           macOS .app 用的 icns
+//   - desktop/assets/icon.ico           多尺寸 ICO，供 embed 与 Windows 托盘使用
+//   - desktop/assets/icon.icns          macOS .app 用的 icns
 //   - desktop/rsrc_windows_amd64.syso   Windows exe 的 PE 图标资源
 //   - desktop/rsrc_windows_arm64.syso
 //
@@ -42,9 +42,9 @@ type icnsEntry struct {
 }
 
 func main() {
-	src := flag.String("src", filepath.Join("..", "..", "internal", "icon", "icon.png"), "源 PNG 路径")
-	icoOut := flag.String("ico", filepath.Join("..", "..", "internal", "icon", "icon.ico"), "输出 ICO 路径")
-	icnsOut := flag.String("icns", filepath.Join("..", "..", "internal", "icon", "icon.icns"), "输出 ICNS 路径")
+	src := flag.String("src", filepath.Join("..", "..", "desktop", "assets", "icon.png"), "源 PNG 路径")
+	icoOut := flag.String("ico", filepath.Join("..", "..", "desktop", "assets", "icon.ico"), "输出 ICO 路径")
+	icnsOut := flag.String("icns", filepath.Join("..", "..", "desktop", "assets", "icon.icns"), "输出 ICNS 路径")
 	sysoDir := flag.String("syso", filepath.Join("..", "..", "desktop"), "syso 输出目录")
 	flag.Parse()
 

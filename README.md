@@ -74,13 +74,15 @@ bash scripts/build-mac-desktop.sh
 
 #### 图标资源
 
-图标只有一个源文件 `server/internal/icon/icon.png`，派生产物已提交进仓库，日常构建无需重新生成：
+图标只有一个源文件 `server/desktop/assets/icon.png`，派生产物已提交进仓库，日常构建无需重新生成：
 
 | 产物 | 用途 |
 |---|---|
-| `server/internal/icon/icon.ico` | 多尺寸 ICO，桌面端托盘与 Windows exe 图标 |
-| `server/internal/icon/icon.icns` | macOS `.app` 的 Finder / Dock 图标 |
+| `server/desktop/assets/icon.ico` | 多尺寸 ICO，桌面端托盘与 Windows exe 图标 |
+| `server/desktop/assets/icon.icns` | macOS `.app` 的 Finder / Dock 图标（按 824/1024 网格留白） |
 | `server/desktop/rsrc_windows_*.syso` | Windows exe 的 PE 图标（资源管理器、任务栏） |
+
+图标是桌面端独有资产，CLI 不引用，因此不会进入 `lansend` 二进制。
 
 更新图标后重新生成：
 

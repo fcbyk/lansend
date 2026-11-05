@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"log"
 
-	"github.com/fcbyk/lansend/internal/icon"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
@@ -25,7 +24,7 @@ func main() {
 	app := application.New(application.Options{
 		Name:        "gui",
 		Description: "Lansend GUI",
-		Icon:        icon.Data(),
+		Icon:        iconData(),
 		Assets: application.AssetOptions{
 			Handler: application.BundledAssetFileServer(webFS),
 		},
@@ -68,7 +67,7 @@ func main() {
 	}
 
 	tray := app.SystemTray.New()
-	tray.SetIcon(icon.Data())
+	tray.SetIcon(iconData())
 	tray.SetTooltip("Lansend")
 
 	tray.OnClick(func() {
