@@ -4,10 +4,10 @@ set -e
 # 仓库根目录（本脚本位于 scripts/ 下）
 cd "$(dirname "$0")/.."
 
-APP_NAME="Lansend"
+APP_NAME="LANSend"
 BIN_NAME="lansend-desktop"
 BUILD_DIR="build"
-BUNDLE_DIR="${BUILD_DIR}/lansend.app"
+BUNDLE_DIR="${BUILD_DIR}/LANSend.app"
 
 # plist 里的版本必须和二进制同源：写死的话 Finder 里永远是 1.0，
 # 和页脚显示的版本对不上。版本号读自根目录 package.json（唯一来源）。
@@ -53,7 +53,7 @@ cat > "${BUNDLE_DIR}/Contents/Info.plist" << EOF
     <string>${SHORT_VERSION}</string>
     <key>CFBundleShortVersionString</key>
     <string>${SHORT_VERSION}</string>
-    <key>LansendCommit</key>
+    <key>LANSendCommit</key>
     <string>${HASH}</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>

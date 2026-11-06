@@ -71,7 +71,7 @@ func TestBuildVersionInfoEmbedsHash(t *testing.T) {
 		}
 	}
 
-	if got := (*st)[version.ProductName]; got != "Lansend" {
+	if got := (*st)[version.ProductName]; got != "LANSend" {
 		t.Errorf("ProductName = %q", got)
 	}
 }

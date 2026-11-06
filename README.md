@@ -1,4 +1,4 @@
-# LanSend
+# LANSend
 
 局域网文件分享工具。一条命令启动 Web 服务，同一网络下的设备通过浏览器即可浏览、上传、下载文件，支持在线聊天和网速测试。
 
@@ -18,15 +18,19 @@
 
 ### 下载二进制
 
-从 [Releases](https://github.com/fcbyk/lansend/releases) 页面下载对应平台的二进制文件：
+从 [Releases](https://github.com/fcbyk/lansend/releases) 页面下载对应平台的文件：
 
-| 平台 | 文件 |
-|------|------|
-| macOS (Apple Silicon) | `lansend-darwin-arm64.tar.gz` |
-| macOS (Intel) | `lansend-darwin-x86_64.tar.gz` |
-| Windows (x64) | `lansend-windows-x64.zip` |
-| Linux (x86_64) | `lansend-linux-x86_64.tar.gz` |
-| Linux (ARM64) | `lansend-linux-arm64.tar.gz` |
+| 平台 | CLI | 桌面端（GUI） |
+|------|------|------|
+| macOS (Apple Silicon) | `lansend-darwin-arm64.tar.gz` | `lansend-desktop-darwin-arm64.zip` |
+| macOS (Intel) | `lansend-darwin-x86_64.tar.gz` | `lansend-desktop-darwin-x86_64.zip` |
+| Windows (x64) | `lansend-windows-x64.zip` | `lansend-desktop-windows-x64.zip` |
+| Linux (x86_64) | `lansend-linux-x86_64.tar.gz` | — |
+| Linux (ARM64) | `lansend-linux-arm64.tar.gz` | — |
+
+桌面端目前只在 Windows 与 macOS 发布：Linux 上 Wails 的 GTK 后端仍是实验状态，且托盘依赖桌面环境提供 StatusNotifier 宿主，GNOME 默认没有，关窗即隐藏的交互没法保证可用。
+
+两个桌面包都没有代码签名。macOS 首次打开会被 Gatekeeper 拦下，右键「打开」或执行 `xattr -cr LANSend.app` 即可；Windows 会弹 SmartScreen 提示，点「更多信息 → 仍要运行」。
 
 ### 从源码构建
 
@@ -42,6 +46,8 @@
 
 - **壳 A**：CLI（纯控制台）→ `lansend`
 - **壳 B**：桌面端（Wails）→ `lansend-desktop`
+
+> 命令行名一律全小写 `lansend`（在 Linux/macOS 上 `LANSend` 这种大小写混杂的名字既难敲也容易出错）。`LANSend` 只是桌面端的显示名，出现在窗口标题、托盘、`LANSend.app` 和 exe 属性里，不要混用。
 
 ```bash
 # 安装前端依赖
@@ -73,7 +79,7 @@ bash scripts/build-mac-desktop.sh
 | 壳 | Windows | Linux / macOS |
 |---|---|---|
 | A | `build/lansend.exe` | `build/lansend` |
-| B | `build/lansend-desktop.exe` | `build/lansend-desktop`（macOS 另打包为 `build/lansend.app`） |
+| B | `build/lansend-desktop.exe` | `build/lansend-desktop`（macOS 另打包为 `build/LANSend.app`） |
 
 > 构建脚本一律使用显式包路径（`./cmd/lansend` 与 `./desktop`）。**不要使用 `go build ./...`**：它会同时编译桌面端，在缺少 GTK/webkit2gtk 的 Linux 环境会失败。
 
@@ -92,7 +98,7 @@ bash scripts/build-mac-desktop.sh
 | CLI | `lansend -v` → `lansend 2026.11.6 (d38a20d)` |
 | 桌面端 | 窗口页脚底部的小字，点一下复制 |
 | Windows exe | 属性 → 详细信息：文件版本 / 产品版本 |
-| macOS `.app` | `Info.plist` 的 `CFBundleShortVersionString`，哈希在 `LansendCommit` 键 |
+| macOS `.app` | `Info.plist` 的 `CFBundleShortVersionString`，哈希在 `LANSendCommit` 键 |
 
 版本同一天内不变，同一天发两次只能靠哈希区分。发布流程：
 

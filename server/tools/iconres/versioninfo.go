@@ -32,9 +32,9 @@ func buildVersionInfo(ver, commit string) (version.Info, error) {
 	}
 
 	fields := [][2]string{
-		{version.ProductName, "Lansend"},
-		{version.FileDescription, "Lansend 局域网文件共享"},
-		{version.CompanyName, "Lansend"},
+		{version.ProductName, "LANSend"},
+		{version.FileDescription, "LANSend 局域网文件共享"},
+		{version.CompanyName, "LANSend"},
 		{version.InternalName, "lansend-desktop"},
 		{version.OriginalFilename, "lansend-desktop.exe"},
 		{version.LegalCopyright, "Copyright (c) 2026 Yoki · MIT"},

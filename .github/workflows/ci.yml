@@ -22,12 +22,12 @@ jobs:
             cgo: 0
           - goos: darwin
             goarch: arm64
-            os: macos-14
+            os: macos-15
             artifact: darwin-arm64
             cgo: 0
           - goos: darwin
             goarch: amd64
-            os: macos-14
+            os: macos-15
             artifact: darwin-x86_64
             cgo: 0
           - goos: windows

@@ -45,8 +45,8 @@ func main() {
 	ctrl := &Controller{srv: srv}
 
 	wailsApp := application.New(application.Options{
-		Name:        "gui",
-		Description: "Lansend GUI",
+		Name:        "LANSend",
+		Description: "LANSend 局域网文件共享",
 		Icon:        iconData(),
 		Assets: application.AssetOptions{
 			Handler: application.BundledAssetFileServer(webFS),
@@ -71,7 +71,7 @@ func main() {
 	ctrl.app = wailsApp
 
 	window = wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:               "Lansend",
+		Title:               "LANSend",
 		Width:               windowWidth,
 		Height:              windowHeight,
 		MinWidth:            windowWidth,
@@ -103,7 +103,7 @@ func main() {
 
 	tray := wailsApp.SystemTray.New()
 	tray.SetIcon(iconData())
-	tray.SetTooltip("Lansend")
+	tray.SetTooltip("LANSend")
 
 	tray.OnClick(func() {
 		if window.IsVisible() {
