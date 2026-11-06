@@ -7,12 +7,22 @@ const rootDir = resolve(import.meta.dirname, '..');
 const serverDir = join(rootDir, 'server');
 const buildDir = join(rootDir, 'build');
 const assetDir = join(serverDir, 'desktop', 'frontend', 'dist');
+// 桌面端不只是自己的窗口：它还要跑 core 服务，把局域网网页发给别的设备。
+// 那份页面由 internal/spa → embeddist 用 //go:embed 打进同一个二进制，
+// 所以两个前端产物缺一不可。
+const webAssetDir = join(serverDir, 'embeddist', 'dist');
 
 // 前端产物是 //go:embed 的输入，缺了就会在编译期报错。
 // 这里提前拦住并给出可执行的提示，比让 go 报 "no matching files" 清楚。
 if (!existsSync(join(assetDir, 'index.html'))) {
   console.error(`缺少桌面端前端产物：${assetDir}`);
   console.error('请先运行 pnpm build:web:desktop');
+  process.exit(1);
+}
+
+if (!existsSync(join(webAssetDir, 'index.html'))) {
+  console.error(`缺少局域网网页产物：${webAssetDir}`);
+  console.error('桌面端会内嵌这份页面（embeddist 通过 //go:embed 引入），请先运行 pnpm build:web');
   process.exit(1);
 }
 
