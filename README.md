@@ -77,23 +77,65 @@ bash scripts/build-mac-desktop.sh
 
 > 构建脚本一律使用显式包路径（`./cmd/lansend` 与 `./desktop`）。**不要使用 `go build ./...`**：它会同时编译桌面端，在缺少 GTK/webkit2gtk 的 Linux 环境会失败。
 
+#### 版本号
+
+版本号只有一个来源：根目录 `package.json` 的 `version` 字段，**手动改，不带 `v`**：
+
+```json
+"version": "2026.11.6"
+```
+
+所有构建脚本只读不写，`v` 前缀由脚本自动补。这样版本跟着提交走，切回旧提交重建得到的是旧版本，而不是"今天"的日期。字段缺失时（本方案落地之前的历史提交）回退 `v0.1.0`，构建不会中断。
+
+| 位置 | 形态 |
+|---|---|
+| CLI | `lansend -v` → `lansend 2026.11.6 (d38a20d)` |
+| 桌面端 | 窗口页脚底部的小字，点一下复制 |
+| Windows exe | 属性 → 详细信息：文件版本 / 产品版本 |
+| macOS `.app` | `Info.plist` 的 `CFBundleShortVersionString`，哈希在 `LansendCommit` 键 |
+
+版本同一天内不变，同一天发两次只能靠哈希区分。发布流程：
+
+```bash
+# 1. 改 package.json 的 version，例如 2026.11.7
+# 2. 提交
+git commit -am "release: v2026.11.7"
+
+# 3. 在当前 HEAD 上打标签（只打标签，不改文件、不提交；缺 version 字段会报错）
+pnpm tag
+
+# 4. 推送标签，触发 CI 发布
+pnpm release
+```
+
+CI 也只认 `package.json`：`ci.yml` 直接读它，`build.yml` 还会断言标签名与版本号一致，不一致当场失败，避免发布出「标签一个号、二进制另一个号」的产物。
+
 #### 图标资源
 
-图标只有一个源文件 `server/desktop/assets/icon.png`，派生产物已提交进仓库，日常构建无需重新生成：
+图标只有一个源文件 `server/desktop/assets/icon.png`：
 
-| 产物 | 用途 |
-|---|---|
-| `server/desktop/assets/icon.ico` | 多尺寸 ICO，桌面端托盘与 Windows exe 图标 |
-| `server/desktop/assets/icon.icns` | macOS `.app` 的 Finder / Dock 图标（按 824/1024 网格留白） |
-| `server/desktop/rsrc_windows_*.syso` | Windows exe 的 PE 图标（资源管理器、任务栏） |
+| 产物 | 进仓库 | 用途 |
+|---|---|---|
+| `server/desktop/assets/icon.ico` | 是 | 多尺寸 ICO，桌面端托盘与窗口图标 |
+| `server/desktop/assets/icon.icns` | 是 | macOS `.app` 的 Finder / Dock 图标（按 824/1024 网格留白） |
+| `server/desktop/rsrc_windows_*.syso` | 否 | Windows exe 的 PE 资源：图标 + 版本信息 |
 
 图标是桌面端独有资产，CLI 不引用，因此不会进入 `lansend` 二进制。
 
-更新图标后重新生成：
+更新图标源后重新生成前两个：
 
 ```bash
 cd server/tools/iconres && go run .
 ```
+
+syso 不进仓库，有两个原因：Go 的链接器只接受一个 `.rsrc` 段（图标和版本信息没法拆成两个文件分别提交），而版本号和哈希每天都不同。`pnpm build:desktop` 会在 `go build` 之前自动现生成，`-skip-assets` 保证已提交的 ico / icns 不被重写：
+
+```bash
+cd server/tools/iconres
+go run . -version v2026.11.6 -commit d38a20d -skip-assets
+```
+
+代价是：Windows 上直接 `go build ./desktop`（不经过构建脚本）得到的 exe 没有文件图标和版本信息，运行时窗口与托盘图标不受影响（它们走 `//go:embed` 的 icon.ico）。
 
 该工具是独立的 Go module，不会被主模块导入，也不影响 `go build`。
 

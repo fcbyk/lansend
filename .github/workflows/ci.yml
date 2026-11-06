@@ -59,10 +59,11 @@ jobs:
       - name: Build
         shell: bash
         run: |
+          # 和本地构建读同一个来源，别再按构建日期现算
+          VERSION=v$(node -p "require('./package.json').version")
           BIN=lansend
           if [ "${{ matrix.goos }}" = "windows" ]; then BIN=lansend.exe; fi
           cd server
-          VERSION=v$(date +%Y.%m.%d | sed 's/\.0/./g')
           HASH=$(git rev-parse --short HEAD)
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=${{ matrix.cgo }} go build -ldflags="-s -w -X 'main.version=${VERSION}' -X 'main.commitHash=${HASH}'" -o ../$BIN ./cmd/lansend
 

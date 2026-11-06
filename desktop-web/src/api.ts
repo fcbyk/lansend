@@ -23,6 +23,11 @@ export interface StateView {
   lanUrl: string
   urls: URLView[]
 
+  /** 构建期注入，与服务是否运行无关，页脚常驻显示 */
+  version: string
+  /** 短提交哈希；取不到时是 "unknown" */
+  commitHash: string
+
   error: string
 }
 
@@ -41,5 +46,6 @@ export const controller = {
   refreshNetworks: () => call<void>('RefreshNetworks'),
   pickDirectory: () => call<string>('PickDirectory'),
   copyURL: (url: string) => call<void>('CopyURL', url),
+  copyText: (text: string) => call<void>('CopyText', text),
   openInBrowser: (url: string) => call<void>('OpenInBrowser', url),
 }

@@ -8,6 +8,9 @@ dist-ssr/
 # Go binary
 build/
 
+# Windows PE 资源带构建版本号，每次构建由 tools/iconres 现生成
+server/desktop/rsrc_windows_*.syso
+
 # IDE / Editor
 .idea/
 .vscode/

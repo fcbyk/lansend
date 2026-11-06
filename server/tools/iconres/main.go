@@ -4,13 +4,21 @@
 // 输出：
 //   - desktop/assets/icon.ico           多尺寸 ICO，供 embed 与 Windows 托盘使用
 //   - desktop/assets/icon.icns          macOS .app 用的 icns（按 macOS 图标网格留白）
-//   - desktop/rsrc_windows_amd64.syso   Windows exe 的 PE 图标资源
+//   - desktop/rsrc_windows_amd64.syso   Windows exe 的 PE 资源（图标 + 可选版本信息）
 //   - desktop/rsrc_windows_arm64.syso
 //
-// 这是一个构建期工具，产物已提交进仓库，日常构建无需运行。
 // 图标源更新后，在 server/tools/iconres 目录执行：
 //
 //	go run .
+//
+// 带 -version 时会把 VERSIONINFO 一起写进 syso，值显示在 Windows 的
+// 「属性 → 详细信息」里。版本号是时间语义的，每天都变，所以这两个 syso 不进仓库，
+// 由 scripts/build-desktop.mjs 在每次构建前用 -skip-assets 重新生成：
+//
+//	go run . -version v2026.11.6 -commit d38a20d -skip-assets
+//
+// Go 的链接器只接受一个 .rsrc 段（多个会报 too many .rsrc sections），
+// 所以图标和版本信息只能共用一个 syso，没法拆成两份分别提交。
 //
 // 依赖 winres 的缩放逻辑，保证 ICO 与 ICNS 的像素来源完全一致。
 package main
@@ -28,6 +36,7 @@ import (
 	"path/filepath"
 
 	"github.com/tc-hib/winres"
+	"github.com/tc-hib/winres/version"
 	"golang.org/x/image/draw"
 )
 
@@ -49,20 +58,42 @@ func main() {
 	icoOut := flag.String("ico", filepath.Join("..", "..", "desktop", "assets", "icon.ico"), "输出 ICO 路径")
 	icnsOut := flag.String("icns", filepath.Join("..", "..", "desktop", "assets", "icon.icns"), "输出 ICNS 路径")
 	sysoDir := flag.String("syso", filepath.Join("..", "..", "desktop"), "syso 输出目录")
+	ver := flag.String("version", "", "版本号（如 v2026.11.6）；提供时把 VERSIONINFO 写进 syso")
+	commit := flag.String("commit", "", "短提交哈希，写进版本资源的字符串")
+	skipAssets := flag.Bool("skip-assets", false, "只生成 syso，不重写 icon.ico / icon.icns（构建脚本用）")
 	flag.Parse()
 
-	if err := run(*src, *icoOut, *icnsOut, *sysoDir); err != nil {
+	err := run(options{
+		src:        *src,
+		icoOut:     *icoOut,
+		icnsOut:    *icnsOut,
+		sysoDir:    *sysoDir,
+		version:    *ver,
+		commit:     *commit,
+		skipAssets: *skipAssets,
+	})
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "错误:", err)
 		os.Exit(1)
 	}
 }
 
-func run(src, icoOut, icnsOut, sysoDir string) error {
-	img, err := loadPNG(src)
+type options struct {
+	src        string
+	icoOut     string
+	icnsOut    string
+	sysoDir    string
+	version    string
+	commit     string
+	skipAssets bool
+}
+
+func run(o options) error {
+	img, err := loadPNG(o.src)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("源图: %s (%dx%d)\n", src, img.Bounds().Dx(), img.Bounds().Dy())
+	fmt.Printf("源图: %s (%dx%d)\n", o.src, img.Bounds().Dx(), img.Bounds().Dy())
 
 	// 1. 统一缩放一次，得到多尺寸图标。
 	//    winres 会保持宽高比缩放，再居中填进正方形画布，所以非正方形源图不会变形。
@@ -71,31 +102,24 @@ func run(src, icoOut, icnsOut, sysoDir string) error {
 		return fmt.Errorf("生成图标失败: %w", err)
 	}
 
-	// 2. ICO
-	var icoBuf bytes.Buffer
-	if err := icon.SaveICO(&icoBuf); err != nil {
-		return fmt.Errorf("编码 ICO 失败: %w", err)
+	if !o.skipAssets {
+		if err := writeAssets(o, img, icon); err != nil {
+			return err
+		}
 	}
-	if err := os.WriteFile(icoOut, icoBuf.Bytes(), 0o644); err != nil {
-		return err
-	}
-	frames, err := parseICO(icoBuf.Bytes())
-	if err != nil {
-		return fmt.Errorf("回读 ICO 失败: %w", err)
-	}
-	fmt.Printf("写出: %s (%d 字节, %d 个尺寸)\n", icoOut, icoBuf.Len(), len(frames))
 
-	// 3. ICNS —— 按 macOS 图标网格重新排版（源图直接参与缩放，不复用 ICO 帧）
-	icns, err := buildICNS(img)
-	if err != nil {
-		return err
+	// 版本信息只在传了版本号时写。单独一份资源，不变量：图标永远在，
+	// 版本号缺席时 exe 的属性页就是空的，而不是带着一个过期的假版本。
+	var vi *version.Info
+	if o.version != "" {
+		built, err := buildVersionInfo(o.version, o.commit)
+		if err != nil {
+			return err
+		}
+		vi = &built
 	}
-	if err := os.WriteFile(icnsOut, icns, 0o644); err != nil {
-		return err
-	}
-	fmt.Printf("写出: %s (%d 字节)\n", icnsOut, len(icns))
 
-	// 4. syso —— 链接进 exe 的 PE 资源，决定资源管理器/任务栏里的图标
+	// 4. syso —— 链接进 exe 的 PE 资源，决定图标与「属性 → 详细信息」里的版本
 	for _, a := range []struct {
 		suffix string
 		arch   winres.Arch
@@ -108,15 +132,48 @@ func run(src, icoOut, icnsOut, sysoDir string) error {
 		if err := rs.SetIcon(icoResourceID, icon); err != nil {
 			return fmt.Errorf("写入资源集失败: %w", err)
 		}
+		if vi != nil {
+			rs.SetVersionInfo(*vi)
+		}
 		if err := rs.WriteObject(&obj, a.arch); err != nil {
 			return fmt.Errorf("生成 %s syso 失败: %w", a.arch, err)
 		}
-		path := filepath.Join(sysoDir, "rsrc_windows_"+a.suffix+".syso")
+		path := filepath.Join(o.sysoDir, "rsrc_windows_"+a.suffix+".syso")
 		if err := os.WriteFile(path, obj.Bytes(), 0o644); err != nil {
 			return err
 		}
 		fmt.Printf("写出: %s (%d 字节)\n", path, obj.Len())
 	}
+
+	return nil
+}
+
+// writeAssets 输出 macOS / 前端 embed 用的图标文件。这些产物进仓库，
+// 只在图标源更新时才会变；构建脚本用 -skip-assets 跳过它们。
+func writeAssets(o options, img image.Image, icon *winres.Icon) error {
+	// 2. ICO
+	var icoBuf bytes.Buffer
+	if err := icon.SaveICO(&icoBuf); err != nil {
+		return fmt.Errorf("编码 ICO 失败: %w", err)
+	}
+	if err := os.WriteFile(o.icoOut, icoBuf.Bytes(), 0o644); err != nil {
+		return err
+	}
+	frames, err := parseICO(icoBuf.Bytes())
+	if err != nil {
+		return fmt.Errorf("回读 ICO 失败: %w", err)
+	}
+	fmt.Printf("写出: %s (%d 字节, %d 个尺寸)\n", o.icoOut, icoBuf.Len(), len(frames))
+
+	// 3. ICNS —— 按 macOS 图标网格重新排版（源图直接参与缩放，不复用 ICO 帧）
+	icns, err := buildICNS(img)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(o.icnsOut, icns, 0o644); err != nil {
+		return err
+	}
+	fmt.Printf("写出: %s (%d 字节)\n", o.icnsOut, len(icns))
 
 	return nil
 }

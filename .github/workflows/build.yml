@@ -62,10 +62,16 @@ jobs:
       - name: Build
         shell: bash
         run: |
+          # 版本号唯一来源是 package.json；标签名只用来校验，两边不一致就停下，
+          # 否则会发布出「标签 v2026.11.4、二进制自称 2026.11.6」的东西。
+          VERSION=v$(node -p "require('./package.json').version")
+          if [ "${VERSION}" != "${{ github.ref_name }}" ]; then
+            echo "package.json 版本 ${VERSION} 与标签 ${{ github.ref_name }} 不一致" >&2
+            exit 1
+          fi
           BIN=lansend
           if [ "${{ matrix.goos }}" = "windows" ]; then BIN=lansend.exe; fi
           cd server
-          VERSION=${{ github.ref_name }}
           HASH=$(git rev-parse --short HEAD)
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=${{ matrix.cgo }} go build -ldflags="-s -w -X 'main.version=${VERSION}' -X 'main.commitHash=${HASH}'" -o ../$BIN ./cmd/lansend
 

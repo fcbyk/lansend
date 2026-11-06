@@ -45,6 +45,10 @@ type StateView struct {
 	LANURL   string    `json:"lanUrl"`
 	URLs     []URLView `json:"urls"`
 
+	// 构建期注入的版本信息。哈希取不到时是 unknown，页面据此只显示版本号。
+	Version    string `json:"version"`
+	CommitHash string `json:"commitHash"`
+
 	Error string `json:"error"`
 }
 
@@ -165,6 +169,17 @@ func (c *Controller) CopyURL(url string) error {
 	return platform.CopyToClipboard(url)
 }
 
+// CopyText 把任意文本写入剪贴板。
+//
+// 页脚复制版本信息用它：那是构建期常量，和服务是否在运行无关，
+// 所以不能复用 CopyURL —— 后者在服务未启动时会直接报错。
+func (c *Controller) CopyText(text string) error {
+	if text == "" {
+		return nil
+	}
+	return platform.CopyToClipboard(text)
+}
+
 func newView(cfg config.Config, st core.State) StateView {
 	v := StateView{
 		Running:         st.Running,
@@ -176,6 +191,8 @@ func newView(cfg config.Config, st core.State) StateView {
 		PasswordSet:     cfg.UploadPassword != "",
 		LocalURL:        st.LocalURL(),
 		LANURL:          st.LANURL(),
+		Version:         version,
+		CommitHash:      commitHash,
 		// 空切片而不是 nil：nil 序列化成 null，页面拿到 null 再 .map 就炸了
 		URLs:  []URLView{},
 		Error: st.Err,

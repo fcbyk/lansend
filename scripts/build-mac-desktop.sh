@@ -9,6 +9,12 @@ BIN_NAME="lansend-desktop"
 BUILD_DIR="build"
 BUNDLE_DIR="${BUILD_DIR}/lansend.app"
 
+# plist 里的版本必须和二进制同源：写死的话 Finder 里永远是 1.0，
+# 和页脚显示的版本对不上。版本号读自根目录 package.json（唯一来源）。
+# 哈希只能放自定义键 —— CFBundle*Version 只接受点分数字，塞字母会被系统判为无效包。
+read -r VERSION HASH <<< "$(node --input-type=module -e 'import { readVersionTag, computeCommitHash } from "./scripts/lib/version.mjs"; console.log(readVersionTag(), computeCommitHash())')"
+SHORT_VERSION="${VERSION#v}"
+
 echo "==> 编译 Go 二进制..."
 node scripts/build-desktop.mjs
 
@@ -44,9 +50,11 @@ cat > "${BUNDLE_DIR}/Contents/Info.plist" << EOF
     <key>CFBundleDisplayName</key>
     <string>${APP_NAME}</string>
     <key>CFBundleVersion</key>
-    <string>1.0</string>
+    <string>${SHORT_VERSION}</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
+    <string>${SHORT_VERSION}</string>
+    <key>LansendCommit</key>
+    <string>${HASH}</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleInfoDictionaryVersion</key>

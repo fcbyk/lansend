@@ -1,6 +1,7 @@
 import { execSync } from 'child_process';
 import { resolve, delimiter, join } from 'path';
 import { mkdirSync } from 'fs';
+import { computeCommitHash, readVersionTag } from './lib/version.mjs';
 
 const rootDir = resolve(import.meta.dirname, '..');
 const serverDir = join(rootDir, 'server');
@@ -16,20 +17,9 @@ if (extraPaths.length) {
   process.env.PATH = extraPaths.join(delimiter) + delimiter + process.env.PATH;
 }
 
-// Compute version string: vYYYY.MM.DD (strip leading zeros from month/day)
-const now = new Date();
-const year = now.getFullYear();
-const month = now.getMonth() + 1; // 0-indexed
-const day = now.getDate();
-const version = `v${year}.${month}.${day}`;
-
-// Compute short commit hash
-let commitHash = 'unknown';
-try {
-  commitHash = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
-} catch {
-  console.warn('Warning: could not get git commit hash');
-}
+// 版本号读自根目录 package.json，唯一来源；这里只读不写。
+const version = readVersionTag();
+const commitHash = computeCommitHash();
 
 const ldflags = `-s -w -X 'main.version=${version}' -X 'main.commitHash=${commitHash}'`;
 
