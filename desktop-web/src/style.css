@@ -253,16 +253,17 @@ input[type="password"]:disabled {
   padding: 9px 12px;
 }
 
-/* 2×2 网格：窗口只有 420 宽，四个两字标签挤一排时每格不到 90px，
-   按钮又窄又紧；分成两排后每格接近半行，点击区域和文字都更舒展 */
+/* 两行布局：上面一排三个功能开关（各占两格），下面一排两个密码入口（各占三格）。
+   6 列是这两排宽度的最小公倍数，格数不同但两排都正好铺满一行，不会剩半格。 */
 .pills {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 8px;
 }
 
 .pill {
   position: relative;
+  grid-column: span 2;
 }
 
 .pill input {
@@ -306,6 +307,8 @@ input[type="password"]:disabled {
   background: none;
   font: inherit;
   color: inherit;
+  /* 两个密码入口各占半行，比上面的功能开关宽一档，顺带把「入口」和「开关」区分开 */
+  grid-column: span 3;
 }
 
 .pill-btn span.on {
@@ -722,6 +725,19 @@ input[type="password"]:disabled {
 .dialog-title {
   font-size: 13.5px;
   font-weight: 500;
+}
+
+/* 标题下面一行说明：两个密码长得很像，一眼看不出来区别时容易设错对象 */
+.dialog-head {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dialog-hint {
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.5;
 }
 
 /* 启用 / 关闭 二态切换：两格并排，选中态和内嵌高亮 pill 同一套配色 */

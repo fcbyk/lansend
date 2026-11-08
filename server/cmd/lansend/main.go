@@ -27,6 +27,7 @@ var (
 	port           int
 	directory      string
 	password       bool
+	accessPassword bool
 	uploadPassword string
 	browser        bool
 	download       bool
@@ -57,6 +58,7 @@ func main() {
 	rootCmd.Flags().BoolVarP(&enableUpload, "upload", "2", false, "Enable upload functionality")
 	rootCmd.Flags().BoolVarP(&chatEnabled, "chat", "3", false, "Enable chat functionality")
 	rootCmd.Flags().BoolVarP(&password, "password", "4", false, "Prompt to set upload password")
+	rootCmd.Flags().BoolVarP(&accessPassword, "access-password", "5", false, "Prompt to set the site-wide access password")
 	rootCmd.Flags().BoolVarP(&browser, "browser", "b", false, "Enable automatic browser opening")
 	rootCmd.Flags().SortFlags = false
 
@@ -65,8 +67,8 @@ func main() {
 	}
 }
 
-func promptPassword() string {
-	fmt.Print("Upload password (press Enter to use default: 123456): ")
+func promptPassword(prompt string) string {
+	fmt.Print(prompt)
 	pwd, err := term.ReadPassword(int(os.Stdin.Fd()))
 	fmt.Println()
 	if err != nil {
@@ -78,11 +80,14 @@ func promptPassword() string {
 	return string(pwd)
 }
 
-func printServerSummary(st core.State, sharedDirectory string, uploadPasswordEnabled bool) {
+func printServerSummary(st core.State, cfg config.Config) {
 	fmt.Println()
-	fmt.Printf(" Directory: %s\n", sharedDirectory)
-	if uploadPasswordEnabled {
+	fmt.Printf(" Directory: %s\n", cfg.SharedDirectory)
+	if cfg.RequireUploadPassword() {
 		fmt.Println(" Upload Password: Enabled")
+	}
+	if cfg.RequireAccessPassword() {
+		fmt.Println(" Access Password: Enabled")
 	}
 
 	fmt.Printf(" Local: \033[36m%s\033[0m\n", st.LocalURL())
@@ -117,10 +122,15 @@ func run(_ *cobra.Command, _ []string) {
 
 	if password && enableUpload {
 		if cfg.UploadPassword == "" {
-			cfg.UploadPassword = promptPassword()
+			cfg.UploadPassword = promptPassword("Upload password (press Enter to use default: 123456): ")
 		}
 		// 命令行只提供「启用」这一条路径，关闭密码在桌面端设置。
 		cfg.UploadPasswordEnabled = true
+	}
+
+	if accessPassword {
+		cfg.AccessPassword = promptPassword("Access password (press Enter to use default: 123456): ")
+		cfg.AccessPasswordEnabled = true
 	}
 
 	srv := core.New(cfg)
@@ -132,7 +142,7 @@ func run(_ *cobra.Command, _ []string) {
 
 	running := srv.Config()
 	st := srv.State()
-	printServerSummary(st, running.SharedDirectory, running.RequireUploadPassword())
+	printServerSummary(st, running)
 
 	if browser {
 		platform.OpenBrowser(st.LANURL())

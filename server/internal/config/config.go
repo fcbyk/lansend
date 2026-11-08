@@ -13,6 +13,10 @@ type Config struct {
 	// UploadPasswordEnabled 决定是否校验密码，与密码值分开存。
 	// 若用「密码为空 = 关闭」来表达，关闭就等于擦掉密码，用户没法再查看/复用。
 	UploadPasswordEnabled bool
+	// AccessPassword 是整站访问密码，进入站点前要输入的那一个。
+	// 与上传密码是两回事：它挡住的是整个网页（含文件列表与下载），不是单个写操作。
+	AccessPassword        string
+	AccessPasswordEnabled bool
 	DownloadEnabled       bool
 	UploadEnabled         bool
 	ChatEnabled           bool
@@ -23,6 +27,11 @@ type Config struct {
 // 只有「已启用且密码非空」才算数：零值配置即不校验，与旧行为一致。
 func (c Config) RequireUploadPassword() bool {
 	return c.UploadPasswordEnabled && c.UploadPassword != ""
+}
+
+// RequireAccessPassword 报告进入站点是否需要访问密码。
+func (c Config) RequireAccessPassword() bool {
+	return c.AccessPasswordEnabled && c.AccessPassword != ""
 }
 
 // Default 返回 CLI 与桌面端共用的初始配置。

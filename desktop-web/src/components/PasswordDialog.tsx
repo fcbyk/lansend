@@ -1,8 +1,32 @@
 import { useEffect, useState } from 'react'
 import { controller } from '../api'
+import type { PasswordState } from '../api'
 import { errorText, refresh, useSnapshot } from '../store'
 
+/**
+ * 两类密码共用同一套表单，区别只在读写的接口和提示文案。
+ * 放在模块级是为了让引用保持稳定：浮窗的挂载逻辑依赖它，若每次渲染都新建
+ * 函数，父组件一重渲染就会把已输入的内容重置掉。
+ */
+const SOURCES = {
+  upload: {
+    title: '上传密码',
+    hint: '访问者上传文件前需要输入这个密码',
+    load: (): Promise<PasswordState> => controller.getUploadPassword(),
+    save: (password: string, enabled: boolean) => controller.setUploadPassword(password, enabled),
+  },
+  access: {
+    title: '访问密码',
+    hint: '打开站点就需要输入这个密码，包含浏览与下载',
+    load: (): Promise<PasswordState> => controller.getAccessPassword(),
+    save: (password: string, enabled: boolean) => controller.setAccessPassword(password, enabled),
+  },
+} as const
+
+export type PasswordKind = keyof typeof SOURCES
+
 interface Props {
+  kind: PasswordKind
   onClose: () => void
 }
 
@@ -10,7 +34,7 @@ interface Props {
  * 随机密码的字符集：去掉 0/O/o/1/l/I 这些容易看错的字符。
  *
  * 密码大多要口头念给旁边的人或者手抄到手机上，少一个看错的字符，
- * 就少一次「密码明明对却传不上去」的排查。
+ * 就少一次「密码明明对却进不去」的排查。
  */
 const ALPHABET = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const RANDOM_LENGTH = 8
@@ -20,8 +44,9 @@ function randomPassword() {
   return Array.from(bytes, (n) => ALPHABET[n % ALPHABET.length]).join('')
 }
 
-/** 上传密码设置浮窗：启用/关闭二态 + 密码编辑，点背景或按 Esc 关闭。 */
-export function UploadPasswordDialog({ onClose }: Props) {
+/** 密码设置浮窗：启用/关闭二态 + 密码编辑，点背景或按 Esc 关闭。 */
+export function PasswordDialog({ kind, onClose }: Props) {
+  const source = SOURCES[kind]
   const { view } = useSnapshot()
 
   const [password, setPassword] = useState('')
@@ -37,7 +62,7 @@ export function UploadPasswordDialog({ onClose }: Props) {
 
     void (async () => {
       try {
-        const current = await controller.getUploadPassword()
+        const current = await source.load()
         if (cancelled) return
         setPassword(current.password)
         setEnabled(current.enabled)
@@ -51,7 +76,7 @@ export function UploadPasswordDialog({ onClose }: Props) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [source])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -75,7 +100,7 @@ export function UploadPasswordDialog({ onClose }: Props) {
 
     void (async () => {
       try {
-        await controller.setUploadPassword(value, enabled)
+        await source.save(value, enabled)
       } catch (e) {
         // 失败时留在浮窗里：直接关掉的话，用户刚输的密码就白输了
         setError(errorText(e))
@@ -99,10 +124,13 @@ export function UploadPasswordDialog({ onClose }: Props) {
         className="dialog-panel"
         role="dialog"
         aria-modal="true"
-        aria-label="上传密码"
+        aria-label={source.title}
         onClick={(event) => event.stopPropagation()}
       >
-        <span className="dialog-title">上传密码</span>
+        <div className="dialog-head">
+          <span className="dialog-title">{source.title}</span>
+          <span className="dialog-hint">{source.hint}</span>
+        </div>
 
         <div className="segmented" role="group" aria-label="密码状态">
           <button

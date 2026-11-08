@@ -7,10 +7,11 @@ import { UploadDetailsTab } from './components/UploadDetailsTab'
 import { TabBar } from './components/TabBar'
 import { ResizeHandle } from './components/ResizeHandle'
 import { SpeedTestPopup } from './components/SpeedTestPopup'
+import { AccessLogin } from './components/AccessLogin'
 import { useDirectoryContext, useUploadContext, usePreviewContext, useSelectionContext, useSpeedContext } from './contexts'
 import { useDragAndDrop } from './hooks/useDragAndDrop'
 import { useWindowResize } from './hooks/useWindowResize'
-import { getLansendConfig } from './api'
+import { ACCESS_REQUIRED_EVENT, getLansendConfig } from './api'
 import { joinUploadPath } from './utils/files'
 import type { FileWithSubdir } from './utils/files'
 import type { DirectoryItem, LansendActiveTab } from './types'
@@ -78,6 +79,8 @@ export function AppContent() {
   const [uploadEnabled, setUploadEnabled] = useState(false)
   const [chatEnabled, setChatEnabled] = useState(false)
   const [showUploadDetailsTab, setShowUploadDetailsTab] = useState(false)
+  // 需要访问密码时整页换成登录界面，其余内容一行都不渲染
+  const [needsAccess, setNeedsAccess] = useState(false)
 
   // --- Refs ---
   const mainContainerRef = useRef<HTMLDivElement>(null)
@@ -102,9 +105,12 @@ export function AppContent() {
         if (storedPassword) {
           await verifyPassword(storedPassword, true)
         }
-      } else {
+      } else if (data) {
         setIsPasswordVerified(true)
       }
+      // 返回 null 说明这次请求没成功（最常见的是撞上访问密码的 401），
+      // 调用方据此决定要不要起轮询 —— 登录页背后轮询没有意义。
+      return data
     },
     [loadDirectory, restoreUploadPasswordFromSession, verifyPassword, setIsPasswordVerified],
   )
@@ -309,24 +315,42 @@ export function AppContent() {
   const previewFileRef = useRef(previewFile)
   useEffect(() => { previewFileRef.current = previewFile }, [previewFile])
 
-  useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        const config = await getLansendConfig()
-        if (!mounted) return
-        setDownloadEnabled(config.download_enabled === true)
-        setUploadEnabled(config.upload_enabled === true)
-        setChatEnabled(config.chat_enabled === true)
-        if (config.upload_enabled === true && isMobileLayoutRef.current && !previewFileRef.current) {
-          setActiveTab(TAB.DIRECTORY)
-        }
-      } catch (e) {
-        console.error('Failed to fetch config:', e)
+  const loadConfig = useCallback(async () => {
+    try {
+      const config = await getLansendConfig()
+      setDownloadEnabled(config.download_enabled === true)
+      setUploadEnabled(config.upload_enabled === true)
+      setChatEnabled(config.chat_enabled === true)
+      if (config.upload_enabled === true && isMobileLayoutRef.current && !previewFileRef.current) {
+        setActiveTab(TAB.DIRECTORY)
       }
-    })()
-    return () => { mounted = false }
+    } catch (e) {
+      console.error('Failed to fetch config:', e)
+    }
   }, [])
+
+  useEffect(() => {
+    void loadConfig()
+  }, [loadConfig])
+
+  // --- 访问密码 ---
+  // 任何请求撞上访问密码都会广播事件（含后台轮询），这里统一把页面切回登录态
+  useEffect(() => {
+    const onAccessRequired = () => setNeedsAccess(true)
+    window.addEventListener(ACCESS_REQUIRED_EVENT, onAccessRequired)
+    return () => window.removeEventListener(ACCESS_REQUIRED_EVENT, onAccessRequired)
+  }, [])
+
+  useEffect(() => {
+    if (needsAccess) stopPolling()
+  }, [needsAccess, stopPolling])
+
+  const handleAccessGranted = useCallback(async () => {
+    setNeedsAccess(false)
+    await loadConfig()
+    const data = await loadDirectoryWithAuth(restorePathFromSession())
+    if (data) startPolling()
+  }, [loadConfig, loadDirectoryWithAuth, restorePathFromSession, startPolling])
 
   // --- Init ---
   useEffect(() => {
@@ -335,8 +359,9 @@ export function AppContent() {
       setActiveTab(TAB.DIRECTORY)
     }
     const initialPath = restorePathFromSession()
-    loadDirectoryWithAuth(initialPath).then(() => {
-      startPolling()
+    void loadDirectoryWithAuth(initialPath).then((data) => {
+      // 没拿到数据（例如需要访问密码）就等登录成功后由 handleAccessGranted 起轮询
+      if (data) startPolling()
     })
   }, [restorePathFromSession, loadDirectoryWithAuth, startPolling])
 
@@ -355,6 +380,11 @@ export function AppContent() {
   }, [downloadEnabled, clearSelection])
 
   // --- Render ---
+  // 需要访问密码时整页换成登录界面：文件列表、聊天、预览都不该先闪一下再被挡住
+  if (needsAccess) {
+    return <AccessLogin onSuccess={handleAccessGranted} />
+  }
+
   const fileListProps = {
     downloadEnabled,
     uploadEnabled,

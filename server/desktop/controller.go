@@ -42,6 +42,8 @@ type StateView struct {
 	// PasswordSet 只表示「当前上传要不要密码」，供功能行的 pill 决定是否高亮；
 	// 不给密码原文，明文走 GetUploadPassword，弹窗打开时才取。
 	PasswordSet bool `json:"passwordSet"`
+	// AccessPasswordSet 表示整站访问密码是否生效，语义同 PasswordSet。
+	AccessPasswordSet bool `json:"accessPasswordSet"`
 
 	LocalURL string    `json:"localUrl"`
 	LANURL   string    `json:"lanUrl"`
@@ -113,19 +115,19 @@ func (c *Controller) SetFeature(name string, enabled bool) error {
 	})
 }
 
-// UploadPasswordView 是设置浮窗需要的密码状态：当前值 + 是否启用。
+// PasswordView 是密码设置浮窗需要的状态：当前值 + 是否启用。
 //
-// 单独开这个接口而不是塞进 StateView：state 快照会跟着每次配置变更广播，
+// 单独开接口而不是塞进 StateView：state 快照会跟着每次配置变更广播，
 // 没必要让明文密码在事件流里反复出现；浮窗打开时取一次就够。
-type UploadPasswordView struct {
+type PasswordView struct {
 	Password string `json:"password"`
 	Enabled  bool   `json:"enabled"`
 }
 
-// GetUploadPassword 返回当前密码原文与启用状态，供设置浮窗回填。
-func (c *Controller) GetUploadPassword() UploadPasswordView {
+// GetUploadPassword 返回上传密码原文与启用状态，供设置浮窗回填。
+func (c *Controller) GetUploadPassword() PasswordView {
 	cfg := c.srv.Config()
-	return UploadPasswordView{
+	return PasswordView{
 		Password: cfg.UploadPassword,
 		Enabled:  cfg.UploadPasswordEnabled,
 	}
@@ -136,16 +138,49 @@ func (c *Controller) GetUploadPassword() UploadPasswordView {
 // 关闭密码不清空密码值：cfg 里两者分开存，关掉只是不再校验，
 // 用户下次打开浮窗还能看到原来的密码，点「启用」即可恢复。
 func (c *Controller) SetUploadPassword(password string, enabled bool) error {
-	// 首尾空格肉眼看不见，粘进来一个很容易导致「密码明明对却传不上去」。
-	password = strings.TrimSpace(password)
-	if enabled && password == "" {
-		return fmt.Errorf("password must not be empty")
+	value, err := normalizePassword(password, enabled)
+	if err != nil {
+		return err
 	}
 
 	return c.srv.Apply(func(cfg *config.Config) {
-		cfg.UploadPassword = password
+		cfg.UploadPassword = value
 		cfg.UploadPasswordEnabled = enabled
 	})
+}
+
+// GetAccessPassword 返回整站访问密码原文与启用状态。
+func (c *Controller) GetAccessPassword() PasswordView {
+	cfg := c.srv.Config()
+	return PasswordView{
+		Password: cfg.AccessPassword,
+		Enabled:  cfg.AccessPasswordEnabled,
+	}
+}
+
+// SetAccessPassword 保存访问密码。改密码后已签发的会话 Cookie 立即失效，
+// 已经在浏览器里登录的人会被要求重新输入。
+func (c *Controller) SetAccessPassword(password string, enabled bool) error {
+	value, err := normalizePassword(password, enabled)
+	if err != nil {
+		return err
+	}
+
+	return c.srv.Apply(func(cfg *config.Config) {
+		cfg.AccessPassword = value
+		cfg.AccessPasswordEnabled = enabled
+	})
+}
+
+// normalizePassword 校验并规整密码输入。
+//
+// 首尾空格肉眼看不见，粘进来一个很容易导致「密码明明对却进不去」。
+func normalizePassword(password string, enabled bool) (string, error) {
+	value := strings.TrimSpace(password)
+	if enabled && value == "" {
+		return "", fmt.Errorf("password must not be empty")
+	}
+	return value, nil
 }
 
 // PickDirectory 打开系统目录选择框，选中后立即应用；用户取消时返回空字符串。
@@ -219,17 +254,18 @@ func (c *Controller) CopyText(text string) error {
 
 func newView(cfg config.Config, st core.State) StateView {
 	v := StateView{
-		Running:         st.Running,
-		Port:            st.Port,
-		Directory:       cfg.SharedDirectory,
-		DownloadEnabled: cfg.DownloadEnabled,
-		UploadEnabled:   cfg.UploadEnabled,
-		ChatEnabled:     cfg.ChatEnabled,
-		PasswordSet:     cfg.RequireUploadPassword(),
-		LocalURL:        st.LocalURL(),
-		LANURL:          st.LANURL(),
-		Version:         version,
-		CommitHash:      commitHash,
+		Running:           st.Running,
+		Port:              st.Port,
+		Directory:         cfg.SharedDirectory,
+		DownloadEnabled:   cfg.DownloadEnabled,
+		UploadEnabled:     cfg.UploadEnabled,
+		ChatEnabled:       cfg.ChatEnabled,
+		PasswordSet:       cfg.RequireUploadPassword(),
+		AccessPasswordSet: cfg.RequireAccessPassword(),
+		LocalURL:          st.LocalURL(),
+		LANURL:            st.LANURL(),
+		Version:           version,
+		CommitHash:        commitHash,
 		// 空切片而不是 nil：nil 序列化成 null，页面拿到 null 再 .map 就炸了
 		URLs:  []URLView{},
 		Error: st.Err,

@@ -18,6 +18,8 @@ export interface StateView {
   uploadEnabled: boolean
   chatEnabled: boolean
   passwordSet: boolean
+  /** 整站访问密码是否生效 */
+  accessPasswordSet: boolean
 
   localUrl: string
   lanUrl: string
@@ -33,8 +35,8 @@ export interface StateView {
 
 export type FeatureName = 'download' | 'upload' | 'chat'
 
-/** 设置浮窗需要的密码状态，对应 Go 侧的 UploadPasswordView。 */
-export interface UploadPasswordView {
+/** 设置浮窗需要的密码状态，对应 Go 侧的 PasswordView。 */
+export interface PasswordState {
   /** 保存的密码原文；关闭状态下依然保留 */
   password: string
   enabled: boolean
@@ -50,9 +52,12 @@ export const controller = {
   stop: () => call<void>('Stop'),
   setPort: (port: number) => call<void>('SetPort', port),
   setFeature: (name: FeatureName, enabled: boolean) => call<void>('SetFeature', name, enabled),
-  getUploadPassword: () => call<UploadPasswordView>('GetUploadPassword'),
+  getUploadPassword: () => call<PasswordState>('GetUploadPassword'),
   setUploadPassword: (password: string, enabled: boolean) =>
     call<void>('SetUploadPassword', password, enabled),
+  getAccessPassword: () => call<PasswordState>('GetAccessPassword'),
+  setAccessPassword: (password: string, enabled: boolean) =>
+    call<void>('SetAccessPassword', password, enabled),
   refreshNetworks: () => call<void>('RefreshNetworks'),
   pickDirectory: () => call<string>('PickDirectory'),
   copyURL: (url: string) => call<void>('CopyURL', url),

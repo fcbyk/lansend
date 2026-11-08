@@ -10,11 +10,48 @@ import type {
 } from './types'
 import { sleep } from './utils/time'
 
+/** 服务端只在「需要访问密码」的 401 上带这个头，用来和上传密码的 401 区分 */
+const ACCESS_REQUIRED_HEADER = 'X-Access-Required'
+
+/** 任何请求撞上访问密码时广播的事件，AppContent 收到后弹登录页 */
+export const ACCESS_REQUIRED_EVENT = 'lansend:access-required'
+
+/**
+ * 统一的 fetch 入口。
+ *
+ * 访问密码走的是会话 Cookie，浏览器会自动带上，所以这里不用改请求本身；
+ * 唯一的职责是把「需要重新登录」这件事广播出去 —— 目录轮询、上传进度这些地方
+ * 都在后台跑，登录态一旦失效它们只会静默失败，不广播的话页面会停在旧数据上。
+ */
+function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  return fetch(input, init).then((response) => {
+    if (response.status === 401 && response.headers.get(ACCESS_REQUIRED_HEADER) === '1') {
+      window.dispatchEvent(new Event(ACCESS_REQUIRED_EVENT))
+    }
+    return response
+  })
+}
+
+/**
+ * 用访问密码换取会话 Cookie
+ */
+export async function loginWithAccessPassword(password: string): Promise<void> {
+  const response = await apiFetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  })
+  const result: ApiResponse = await response.json().catch(() => ({ code: 500, message: '', data: null }))
+  if (!response.ok || result.code !== 200) {
+    throw new Error(result.code === 401 ? '密码错误，请重试' : result.message || '登录失败，请重试')
+  }
+}
+
 /**
  * 获取配置信息
  */
 export async function getLansendConfig(): Promise<LansendConfig> {
-  const response = await fetch('/api/config')
+  const response = await apiFetch('/api/config')
   const result: ApiResponse<LansendConfig> = await response.json()
   if (!response.ok || result.code !== 200) {
     throw new Error(result.message || 'Failed to load config')
@@ -26,7 +63,7 @@ export async function getLansendConfig(): Promise<LansendConfig> {
  * 获取目录数据
  */
 export async function getDirectory(path: string = ''): Promise<DirectoryData> {
-  const response = await fetch(`/api/directory?path=${encodeURIComponent(path)}`)
+  const response = await apiFetch(`/api/directory?path=${encodeURIComponent(path)}`)
   const result: ApiResponse<DirectoryData> = await response.json()
   if (!response.ok || result.code !== 200) {
     throw new Error(result.message || 'Failed to load directory')
@@ -35,7 +72,7 @@ export async function getDirectory(path: string = ''): Promise<DirectoryData> {
 }
 
 export async function downloadZip(paths: string[]): Promise<{ blob: Blob; filename: string }> {
-  const response = await fetch('/api/download-zip', {
+  const response = await apiFetch('/api/download-zip', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -67,7 +104,7 @@ export async function downloadZip(paths: string[]): Promise<{ blob: Blob; filena
  */
 export async function verifyUploadPassword(password: string): Promise<VerifyUploadPasswordResponse> {
   try {
-    const response = await fetch('/upload', {
+    const response = await apiFetch('/upload', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -92,7 +129,7 @@ export async function verifyUploadPassword(password: string): Promise<VerifyUplo
  * 获取文件内容（用于预览）
  */
 export async function getFileContent(path: string): Promise<PreviewFile> {
-  const response = await fetch(`/api/file/${encodeURIComponent(path)}`)
+  const response = await apiFetch(`/api/file/${encodeURIComponent(path)}`)
   const result: ApiResponse<PreviewFile> = await response.json()
   if (!response.ok || result.code !== 200) {
     throw new Error(result.message || 'Failed to load file')
@@ -202,7 +239,7 @@ export async function uploadFileByChunks(
   initForm.append('total_chunks', totalChunks.toString())
   if (password) initForm.append('password', password)
 
-  const initResp = await fetch('/api/upload/init', {
+  const initResp = await apiFetch('/api/upload/init', {
     method: 'POST',
     body: initForm,
     headers: password ? { 'X-Upload-Password': password } : undefined,
@@ -238,7 +275,7 @@ export async function uploadFileByChunks(
     let attempt = 0
     while (true) {
       try {
-        const resp = await fetch(
+        const resp = await apiFetch(
           `/api/upload/chunk?upload_id=${encodeURIComponent(resolvedUploadId)}&index=${index}`,
           {
           method: 'POST',
@@ -292,7 +329,7 @@ export async function uploadFileByChunks(
     await Promise.all(workers)
   } catch (error) {
     try {
-      await fetch('/api/upload/abort', {
+      await apiFetch('/api/upload/abort', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -306,7 +343,7 @@ export async function uploadFileByChunks(
     return { success: false, error: error instanceof Error ? error.message : 'upload failed' }
   }
 
-  const completeResp = await fetch('/api/upload/complete', {
+  const completeResp = await apiFetch('/api/upload/complete', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -331,7 +368,7 @@ export async function uploadFileByChunks(
  * 获取聊天消息列表
  */
 export async function getChatMessages(): Promise<ChatMessagesResponse> {
-  const response = await fetch('/api/chat/messages')
+  const response = await apiFetch('/api/chat/messages')
   const result: ApiResponse<ChatMessagesResponse> = await response.json()
   if (!response.ok || result.code !== 200) {
     throw new Error(result.message || 'Failed to load chat messages')
@@ -347,7 +384,7 @@ export const SPEED_TEST_DURATION_MS = 5000
  */
 export async function pingTest(): Promise<number> {
   const start = Date.now()
-  await fetch('/api/config')
+  await apiFetch('/api/config')
   return Date.now() - start
 }
 
@@ -559,7 +596,7 @@ export function uploadSpeedTest(
  * 发送聊天消息
  */
 export async function sendChatMessage(message: string): Promise<{ success: boolean; message: ChatMessage }> {
-  const response = await fetch('/api/chat/send', {
+  const response = await apiFetch('/api/chat/send', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

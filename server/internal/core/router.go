@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/fcbyk/lansend/internal/auth"
 	"github.com/fcbyk/lansend/internal/chat"
 	"github.com/fcbyk/lansend/internal/config"
 	"github.com/fcbyk/lansend/internal/files"
@@ -16,12 +17,16 @@ import (
 //
 // 开关在装配时决定：上传与聊天关闭时对应路由不会注册，因此改变开关需要重建
 // handler（见 Server.Apply）。spa 提供内嵌的网页文件页，与桌面端窗口页面无关。
-func BuildHandler(cfg *config.Config) *http.ServeMux {
+//
+// 返回 http.Handler 而不是 *http.ServeMux：访问密码是包在最外层的一层，
+// 装配点对外只承诺「一个能直接挂到 Server 上的 handler」。
+func BuildHandler(cfg *config.Config) http.Handler {
 	fileService := &files.Service{Config: cfg}
 
 	mux := http.NewServeMux()
 
 	spa.RegisterRoutes(mux)
+	auth.RegisterRoutes(mux, cfg)
 
 	mux.HandleFunc("GET /api/config", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -44,5 +49,6 @@ func BuildHandler(cfg *config.Config) *http.ServeMux {
 
 	speedtest.RegisterRoutes(mux)
 
-	return mux
+	// 最外层再包一层访问密码：未登录时只有网页外壳和 /api/auth/login 可达。
+	return auth.Guard(cfg, mux)
 }
