@@ -3,6 +3,7 @@ import { controller } from '../api'
 import type { FeatureName, StateView } from '../api'
 import { errorText, refresh, showError } from '../store'
 import type { BusyKey } from '../store'
+import { UploadPasswordDialog } from './UploadPasswordDialog'
 
 interface Props {
   view: StateView | null
@@ -27,6 +28,7 @@ const FEATURES: { name: FeatureName; label: string; enabled: (view: StateView) =
  */
 export function FeaturePills({ view, busy }: Props) {
   const [pending, setPending] = useState<Partial<Record<FeatureName, boolean>>>({})
+  const [passwordOpen, setPasswordOpen] = useState(false)
 
   const toggle = (name: FeatureName, next: boolean) => {
     if (busy || pending[name] !== undefined) return
@@ -73,7 +75,21 @@ export function FeaturePills({ view, busy }: Props) {
             <span>{feature.label}</span>
           </label>
         ))}
+
+        {/* 前三个 pill 点一下就翻转状态；这个是入口，所以用 button 而不是 checkbox ——
+            否则点下去的瞬间勾选态会先自己翻一次，看起来像已经启用了，实际只是打开了浮窗。
+            高亮只反映后端真实状态（已启用且密码非空）。 */}
+        <button
+          type="button"
+          className="pill pill-btn"
+          aria-haspopup="dialog"
+          onClick={() => setPasswordOpen(true)}
+        >
+          <span className={view?.passwordSet ? 'on' : ''}>上传密码</span>
+        </button>
       </div>
+
+      {passwordOpen && <UploadPasswordDialog onClose={() => setPasswordOpen(false)} />}
     </section>
   )
 }

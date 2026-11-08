@@ -270,7 +270,7 @@ func (s *Service) GetDirectoryListing(relativePath string) (*DirectoryListing, e
 		RelativePath:    relativePath,
 		PathParts:       s.GetPathParts(relativePath),
 		Items:           items,
-		RequirePassword: s.Config.UploadPassword != "",
+		RequirePassword: s.Config.RequireUploadPassword(),
 	}, nil
 }
 

@@ -46,7 +46,7 @@ func (s *Service) SafeUploadID(uploadID string) string {
 }
 
 func (s *Service) VerifyPassword(password string) (bool, string) {
-	if s.Config.UploadPassword == "" {
+	if !s.Config.RequireUploadPassword() {
 		return true, ""
 	}
 	if password == "" {

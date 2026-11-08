@@ -115,8 +115,12 @@ func run(_ *cobra.Command, _ []string) {
 	cfg.UploadEnabled = enableUpload
 	cfg.ChatEnabled = chatEnabled
 
-	if password && enableUpload && cfg.UploadPassword == "" {
-		cfg.UploadPassword = promptPassword()
+	if password && enableUpload {
+		if cfg.UploadPassword == "" {
+			cfg.UploadPassword = promptPassword()
+		}
+		// 命令行只提供「启用」这一条路径，关闭密码在桌面端设置。
+		cfg.UploadPasswordEnabled = true
 	}
 
 	srv := core.New(cfg)
@@ -128,7 +132,7 @@ func run(_ *cobra.Command, _ []string) {
 
 	running := srv.Config()
 	st := srv.State()
-	printServerSummary(st, running.SharedDirectory, running.UploadPassword != "")
+	printServerSummary(st, running.SharedDirectory, running.RequireUploadPassword())
 
 	if browser {
 		platform.OpenBrowser(st.LANURL())

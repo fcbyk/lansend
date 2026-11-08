@@ -39,7 +39,9 @@ type StateView struct {
 	DownloadEnabled bool `json:"downloadEnabled"`
 	UploadEnabled   bool `json:"uploadEnabled"`
 	ChatEnabled     bool `json:"chatEnabled"`
-	PasswordSet     bool `json:"passwordSet"`
+	// PasswordSet 只表示「当前上传要不要密码」，供功能行的 pill 决定是否高亮；
+	// 不给密码原文，明文走 GetUploadPassword，弹窗打开时才取。
+	PasswordSet bool `json:"passwordSet"`
 
 	LocalURL string    `json:"localUrl"`
 	LANURL   string    `json:"lanUrl"`
@@ -108,6 +110,41 @@ func (c *Controller) SetFeature(name string, enabled bool) error {
 		case "chat":
 			cfg.ChatEnabled = enabled
 		}
+	})
+}
+
+// UploadPasswordView 是设置浮窗需要的密码状态：当前值 + 是否启用。
+//
+// 单独开这个接口而不是塞进 StateView：state 快照会跟着每次配置变更广播，
+// 没必要让明文密码在事件流里反复出现；浮窗打开时取一次就够。
+type UploadPasswordView struct {
+	Password string `json:"password"`
+	Enabled  bool   `json:"enabled"`
+}
+
+// GetUploadPassword 返回当前密码原文与启用状态，供设置浮窗回填。
+func (c *Controller) GetUploadPassword() UploadPasswordView {
+	cfg := c.srv.Config()
+	return UploadPasswordView{
+		Password: cfg.UploadPassword,
+		Enabled:  cfg.UploadPasswordEnabled,
+	}
+}
+
+// SetUploadPassword 保存上传密码并与启用状态一并应用。
+//
+// 关闭密码不清空密码值：cfg 里两者分开存，关掉只是不再校验，
+// 用户下次打开浮窗还能看到原来的密码，点「启用」即可恢复。
+func (c *Controller) SetUploadPassword(password string, enabled bool) error {
+	// 首尾空格肉眼看不见，粘进来一个很容易导致「密码明明对却传不上去」。
+	password = strings.TrimSpace(password)
+	if enabled && password == "" {
+		return fmt.Errorf("password must not be empty")
+	}
+
+	return c.srv.Apply(func(cfg *config.Config) {
+		cfg.UploadPassword = password
+		cfg.UploadPasswordEnabled = enabled
 	})
 }
 
@@ -188,7 +225,7 @@ func newView(cfg config.Config, st core.State) StateView {
 		DownloadEnabled: cfg.DownloadEnabled,
 		UploadEnabled:   cfg.UploadEnabled,
 		ChatEnabled:     cfg.ChatEnabled,
-		PasswordSet:     cfg.UploadPassword != "",
+		PasswordSet:     cfg.RequireUploadPassword(),
 		LocalURL:        st.LocalURL(),
 		LANURL:          st.LANURL(),
 		Version:         version,

@@ -33,6 +33,13 @@ export interface StateView {
 
 export type FeatureName = 'download' | 'upload' | 'chat'
 
+/** 设置浮窗需要的密码状态，对应 Go 侧的 UploadPasswordView。 */
+export interface UploadPasswordView {
+  /** 保存的密码原文；关闭状态下依然保留 */
+  password: string
+  enabled: boolean
+}
+
 // 页面通过 Wails 绑定按 FQN 调用，前缀固定为 main.Controller。
 const call = <T>(method: string, ...args: unknown[]): Promise<T> =>
   Call.ByName(`main.Controller.${method}`, ...args) as Promise<T>
@@ -43,6 +50,9 @@ export const controller = {
   stop: () => call<void>('Stop'),
   setPort: (port: number) => call<void>('SetPort', port),
   setFeature: (name: FeatureName, enabled: boolean) => call<void>('SetFeature', name, enabled),
+  getUploadPassword: () => call<UploadPasswordView>('GetUploadPassword'),
+  setUploadPassword: (password: string, enabled: boolean) =>
+    call<void>('SetUploadPassword', password, enabled),
   refreshNetworks: () => call<void>('RefreshNetworks'),
   pickDirectory: () => call<string>('PickDirectory'),
   copyURL: (url: string) => call<void>('CopyURL', url),

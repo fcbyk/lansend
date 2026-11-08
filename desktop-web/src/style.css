@@ -100,7 +100,8 @@ body {
 }
 
 input[type="text"],
-input[type="number"] {
+input[type="number"],
+input[type="password"] {
   flex: 1;
   min-width: 0;
   background: var(--surface);
@@ -113,7 +114,8 @@ input[type="number"] {
 }
 
 input[type="text"]:focus,
-input[type="number"]:focus {
+input[type="number"]:focus,
+input[type="password"]:focus {
   border-color: var(--accent);
 }
 
@@ -143,7 +145,8 @@ input[readonly]:focus {
 
 /* 锁定态（服务运行中不能改端口）：压暗但保持可读，和禁用按钮同一套颜色 */
 input[type="text"]:disabled,
-input[type="number"]:disabled {
+input[type="number"]:disabled,
+input[type="password"]:disabled {
   background: #10131a;
   border-color: #1c1f29;
   color: #565c6b;
@@ -250,14 +253,16 @@ input[type="number"]:disabled {
   padding: 9px 12px;
 }
 
+/* 2×2 网格：窗口只有 420 宽，四个两字标签挤一排时每格不到 90px，
+   按钮又窄又紧；分成两排后每格接近半行，点击区域和文字都更舒展 */
 .pills {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
 }
 
 .pill {
   position: relative;
-  flex: 1;
 }
 
 .pill input {
@@ -291,6 +296,22 @@ input[type="number"]:disabled {
 .pill input:focus-visible + span {
   outline: 1px solid var(--accent);
   outline-offset: 1px;
+}
+
+/* 第四个 pill 是入口而不是开关：按钮自己不带边框，外观仍由内部的 span 表达，
+   高亮规则也照抄勾选态那一套，四个 pill 看起来才是同一排东西 */
+.pill-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+}
+
+.pill-btn span.on {
+  color: #a9c8ff;
+  border-color: rgba(76, 141, 255, 0.55);
+  background: rgba(76, 141, 255, 0.12);
 }
 
 /* 地址区排在最上面（状态行之下）。不主动撑开：内容短时保持自身高度，
@@ -672,3 +693,99 @@ input[type="number"]:disabled {
   word-break: break-all;
   user-select: text;
 }
+
+/* 设置浮窗：遮罩沿用二维码浮层那一套，面板换成深色表单。
+   面板不铺满整窗 —— 内容和按钮都不多，留白会让「这是一层浮窗」更明确。 */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(5, 7, 11, 0.74);
+}
+
+.dialog-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  width: 100%;
+  max-width: 330px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6);
+}
+
+.dialog-title {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+/* 启用 / 关闭 二态切换：两格并排，选中态和内嵌高亮 pill 同一套配色 */
+.segmented {
+  display: flex;
+  gap: 6px;
+}
+
+.seg {
+  flex: 1;
+  padding: 6px 0;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.seg:hover:not(:disabled) {
+  border-color: #313849;
+}
+
+.seg.on {
+  color: #a9c8ff;
+  border-color: rgba(76, 141, 255, 0.55);
+  background: rgba(76, 141, 255, 0.12);
+}
+
+.seg:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* 密码行：输入框 + 右侧两个文字按钮。按钮排在框外而不是压在框内，
+   因为「随机生成」比「选择目录」那种内嵌按钮宽得多，压在框里会把输入区挤没 */
+.pwd-row {
+  display: flex;
+  gap: 6px;
+}
+
+.btn.mini {
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+/* 提示行比正文小一号：它只是补充信息，不该和密码框抢注意力 */
+.dialog-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dialog-note {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+

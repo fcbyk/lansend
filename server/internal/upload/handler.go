@@ -150,7 +150,7 @@ func RegisterRoutes(mux *http.ServeMux, svc *Service) {
 				response.Error(w, 401, msg)
 				return
 			}
-			if svc.Config.UploadPassword != "" {
+			if svc.Config.RequireUploadPassword() {
 				response.SuccessMsg(w, "password ok", nil)
 				return
 			}
