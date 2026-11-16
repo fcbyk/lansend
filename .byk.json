@@ -1,0 +1,21 @@
+{
+  "$var": {
+    "gh": "https://github.com/fcbyk/lansend/releases/latest/download",
+    "url": {
+      "darwin-arm64": "${gh}/lansend-darwin-arm64.tar.gz",
+      "darwin-x86_64": "${gh}/lansend-darwin-x86_64.tar.gz",
+      "linux-arm64": "${gh}/lansend-linux-arm64.tar.gz",
+      "linux-x86_64": "${gh}/lansend-linux-x86_64.tar.gz",
+      "windows-x64": "${gh}/lansend-windows-x64.zip"
+    }
+  },
+  "$deps": {
+    "files": [{"src": "${url}", "extract": true}]
+  },
+  "$paths": ["${deps_dir}"],
+  "lansend":{
+    "$cmd": "lansend",
+    "$mode": "silent",
+    "$description": "Start a local web server for sharing files over LAN"
+  }
+}
