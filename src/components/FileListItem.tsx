@@ -6,6 +6,7 @@ import { RepoTreeIcon } from './RepoTreeIcon'
 
 interface FileListItemProps {
   item: DirectoryItem
+  downloadEnabled: boolean
   selectionMode: boolean
   isSelected: boolean
   onClick: (item: DirectoryItem) => void
@@ -14,6 +15,7 @@ interface FileListItemProps {
 
 export const FileListItem = memo(function FileListItem({
   item,
+  downloadEnabled,
   selectionMode,
   isSelected,
   onClick,
@@ -58,6 +60,18 @@ export const FileListItem = memo(function FileListItem({
             </span>
           </span>
         </div>
+        {downloadEnabled && !item.is_dir && !selectionMode && (
+          <a
+            href={`/api/download/${encodeURIComponent(item.path)}`}
+            download
+            onClick={(event) => event.stopPropagation()}
+            aria-label="下载"
+            title="下载"
+            className="ml-2.5 flex-none inline-flex h-6 items-center rounded px-[10px] text-[12px] leading-none text-white no-underline opacity-0 pointer-events-none transition-all duration-200 group-hover:bg-[#2ecc71] group-hover:opacity-100 group-hover:pointer-events-auto group-hover:hover:bg-[#27ae60] pointer-coarse:bg-[#2ecc71] pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto"
+          >
+            下载
+          </a>
+        )}
       </div>
     </li>
   )

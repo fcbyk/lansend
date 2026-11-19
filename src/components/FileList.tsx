@@ -176,6 +176,7 @@ export function FileList({
                 <FileListItem
                   key={item.path}
                   item={item}
+                  downloadEnabled={!!downloadEnabled}
                   selectionMode={!!selectionMode}
                   isSelected={isSelected(item.path)}
                   onClick={onItemClick}
