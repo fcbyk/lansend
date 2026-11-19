@@ -9,6 +9,11 @@ BIN_NAME="lansend-desktop"
 BUILD_DIR="build"
 BUNDLE_DIR="${BUILD_DIR}/LANSend.app"
 
+# 桌面端只支持较新的 macOS，老旧系统用 CLI。
+# 与 build-desktop.mjs 里的默认值保持一致，保证 cgo 对象、链接产物和 plist 同源。
+MIN_MACOS_VERSION="${MACOSX_DEPLOYMENT_TARGET:-11.0}"
+export MACOSX_DEPLOYMENT_TARGET="${MIN_MACOS_VERSION}"
+
 # plist 里的版本必须和二进制同源：写死的话 Finder 里永远是 1.0，
 # 和页脚显示的版本对不上。版本号读自根目录 package.json（唯一来源）。
 # 哈希只能放自定义键 —— CFBundle*Version 只接受点分数字，塞字母会被系统判为无效包。
@@ -60,7 +65,7 @@ cat > "${BUNDLE_DIR}/Contents/Info.plist" << EOF
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>LSMinimumSystemVersion</key>
-    <string>10.13</string>
+    <string>${MIN_MACOS_VERSION}</string>
     <key>LSUIElement</key>
     <true/>
     <key>NSHighResolutionCapable</key>

@@ -30,6 +30,8 @@
 
 桌面端目前只在 Windows 与 macOS 发布：Linux 上 Wails 的 GTK 后端仍是实验状态，且托盘依赖桌面环境提供 StatusNotifier 宿主，GNOME 默认没有，关窗即隐藏的交互没法保证可用。
 
+macOS 桌面端要求 **macOS 11 (Big Sur) 及以上**；更老的系统请使用 CLI 版本。
+
 两个桌面包都没有代码签名。macOS 首次打开会被 Gatekeeper 拦下，右键「打开」或执行 `xattr -cr LANSend.app` 即可；Windows 会弹 SmartScreen 提示，点「更多信息 → 仍要运行」。
 
 ### 从源码构建

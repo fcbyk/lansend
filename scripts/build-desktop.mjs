@@ -37,6 +37,14 @@ if (extraPaths.length) {
 }
 
 const isWindows = process.platform === 'win32';
+const isMacOS = process.platform === 'darwin';
+
+// 桌面端只支持较新的 macOS，老旧系统用 CLI。
+// 这个版本号必须在三处一致，否则 cgo 对象和最终链接产物的最低版本会对不上：
+// clang 的 -mmacosx-version-min、Go 传给外链器的参数、Info.plist。
+// build-mac-desktop.sh 里的默认值与这里保持同步。
+const macOSMinVersion = process.env.MACOSX_DEPLOYMENT_TARGET || '11.0';
+const macOSMinFlag = `-mmacosx-version-min=${macOSMinVersion}`;
 
 // 与 CLI 同源：版本号读自根目录 package.json，哈希取当前提交。
 // 时间语义的版本同一天内不变化，只有哈希能区分是当天的哪一次构建，
@@ -49,6 +57,7 @@ const ldflags = [
   isWindows ? '-H windowsgui' : '',
   `-X 'main.version=${version}'`,
   `-X 'main.commitHash=${commitHash}'`,
+  isMacOS ? `-extldflags '${macOSMinFlag}'` : '',
 ]
   .filter(Boolean)
   .join(' ');
@@ -78,6 +87,14 @@ const cmd = `go build -ldflags="${ldflags}" -o "${outputPath}" ./desktop`;
 const env = { ...process.env };
 if (!isWindows) {
   env.CGO_ENABLED = '1';
+}
+// 只设 MACOSX_DEPLOYMENT_TARGET 不够：部分 cgo 包没有写最低版本，
+// clang 仍会按宿主系统版本编译对象。这里把 min 版本显式追加到 cgo
+// 编译与链接参数末尾（后写覆盖先写），再用 extldflags 对齐最终链接。
+if (isMacOS) {
+  env.MACOSX_DEPLOYMENT_TARGET = macOSMinVersion;
+  env.CGO_CFLAGS = [env.CGO_CFLAGS, macOSMinFlag].filter(Boolean).join(' ');
+  env.CGO_LDFLAGS = [env.CGO_LDFLAGS, macOSMinFlag].filter(Boolean).join(' ');
 }
 
 console.log(`Building desktop ${isWindows ? 'with: ' : 'with: CGO_ENABLED=1 '}${cmd}`);
