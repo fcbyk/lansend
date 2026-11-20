@@ -16,6 +16,22 @@
 
 ## 安装
 
+### 一键安装
+
+macOS / Linux（CLI，默认装到 `~/.local/bin`）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/fcbyk/lansend/main/scripts/install.sh | sh
+```
+
+Windows PowerShell（CLI，默认装到 `%LOCALAPPDATA%\LANSend` 并加入用户 PATH）：
+
+```powershell
+irm https://raw.githubusercontent.com/fcbyk/lansend/main/scripts/install.ps1 | iex
+```
+
+两个脚本都会从 Releases 下载对应架构的最新版本，并用 `checksums.txt` 校验 SHA-256。安装目录可用环境变量 `LANSEND_INSTALL_DIR` 覆盖；`install.sh` 也支持 `-d DIR`，`install.ps1` 以文件方式运行时也支持 `-InstallDir DIR`。桌面端不经过脚本，直接下载 Release 里的 zip 解压使用。
+
 ### 下载二进制
 
 从 [Releases](https://github.com/fcbyk/lansend/releases) 页面下载最新版本。CLI 覆盖 macOS（Apple Silicon / Intel）、Windows (x64) 和 Linux（x86_64 / ARM64）；桌面端（GUI）只发布 macOS 与 Windows。
