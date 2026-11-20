@@ -18,21 +18,7 @@
 
 ### 下载二进制
 
-从 [Releases](https://github.com/fcbyk/lansend/releases) 页面下载对应平台的文件：
-
-| 平台 | CLI | 桌面端（GUI） |
-|------|------|------|
-| macOS (Apple Silicon) | `lansend-darwin-arm64.tar.gz` | `lansend-desktop-darwin-arm64.zip` |
-| macOS (Intel) | `lansend-darwin-x86_64.tar.gz` | `lansend-desktop-darwin-x86_64.zip` |
-| Windows (x64) | `lansend-windows-x64.zip` | `lansend-desktop-windows-x64.zip` |
-| Linux (x86_64) | `lansend-linux-x86_64.tar.gz` | — |
-| Linux (ARM64) | `lansend-linux-arm64.tar.gz` | — |
-
-桌面端目前只在 Windows 与 macOS 发布：Linux 上 Wails 的 GTK 后端仍是实验状态，且托盘依赖桌面环境提供 StatusNotifier 宿主，GNOME 默认没有，关窗即隐藏的交互没法保证可用。
-
-macOS 桌面端要求 **macOS 11 (Big Sur) 及以上**；更老的系统请使用 CLI 版本。
-
-两个桌面包都没有代码签名。macOS 首次打开会被 Gatekeeper 拦下，右键「打开」或执行 `xattr -cr LANSend.app` 即可；Windows 会弹 SmartScreen 提示，点「更多信息 → 仍要运行」。
+从 [Releases](https://github.com/fcbyk/lansend/releases) 页面下载最新版本。CLI 覆盖 macOS（Apple Silicon / Intel）、Windows (x64) 和 Linux（x86_64 / ARM64）；桌面端（GUI）只发布 macOS 与 Windows。
 
 ### 从源码构建
 

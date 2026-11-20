@@ -101,16 +101,20 @@ jobs:
         include:
           # 只发 Windows x86 与 macOS 两个架构。Linux 不发：Wails 的 GTK 后端仍标着
           # 实验性，托盘依赖桌面环境提供 StatusNotifier 宿主，关窗即隐藏的行为没法保证。
-          # 两个 macOS 目标都用原生 runner，避免 cgo 交叉编译（GitHub 已不提供 macOS 13，
-          # Intel 走 2025 年新增的 macos-15-intel 标签）。
+          # macOS 两个架构都跑在 macos-15 (arm64)：x86_64 用 GOARCH=amd64 交叉编译，
+          # 避开 Intel runner 的排队和慢速；-arch 标志由 build-desktop.mjs 处理。
+          # 交叉编译的 x86 包无法在 CI 实际运行，出问题就回退到 macos-15-intel。
           - os: windows-2022
             artifact: windows-x64
+            goarch: amd64
             script: pnpm build:desktop
           - os: macos-15
             artifact: darwin-arm64
+            goarch: arm64
             script: pnpm build:desktop:mac
-          - os: macos-15-intel
+          - os: macos-15
             artifact: darwin-x86_64
+            goarch: amd64
             script: pnpm build:desktop:mac
 
     steps:
@@ -133,6 +137,8 @@ jobs:
 
       - name: Build
         shell: bash
+        env:
+          GOARCH: ${{ matrix.goarch }}
         run: |
           # 与 CLI 同一条规则：版本来自 HEAD 的提交时间，且必须和标签一致
           VERSION=$(node scripts/print-version.mjs)
@@ -167,6 +173,12 @@ jobs:
     # 桌面端构建失败就不发版，避免出现只带 CLI 的半套发布
     needs: [cli, desktop]
     steps:
+      # 需要完整历史和标签，才能定位上一个 v* 版本、生成 Full Changelog 链接
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
       - uses: actions/download-artifact@v4
         with:
           path: assets
@@ -179,14 +191,18 @@ jobs:
         shell: bash
         run: shasum -a 256 lansend-*.tar.gz lansend-*.zip > checksums.txt
 
+      - name: Generate release body
+        shell: bash
+        run: node scripts/release-body.mjs > release_body.md
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
+          body_path: release_body.md
           files: |
             lansend-*.tar.gz
             lansend-*.zip
             checksums.txt
-          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

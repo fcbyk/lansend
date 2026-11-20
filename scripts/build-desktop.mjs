@@ -46,6 +46,19 @@ const isMacOS = process.platform === 'darwin';
 const macOSMinVersion = process.env.MACOSX_DEPLOYMENT_TARGET || '11.0';
 const macOSMinFlag = `-mmacosx-version-min=${macOSMinVersion}`;
 
+// macOS 默认构建宿主架构；CI 通过 GOARCH 在 arm64 runner 上交叉编译 x86_64。
+// cgo 的 clang 不会自动跟随 GOARCH，必须显式传 -arch，否则产物还是宿主架构。
+const hostGoArch = process.arch === 'x64' ? 'amd64' : process.arch;
+const targetArch = process.env.GOARCH || hostGoArch;
+const clangArch = targetArch === 'amd64' ? 'x86_64' : targetArch === 'arm64' ? 'arm64' : '';
+if (isMacOS && !clangArch) {
+  console.error(`不支持的 macOS 目标架构: ${targetArch}（只支持 arm64 / amd64）`);
+  process.exit(1);
+}
+const macOSClangFlags = isMacOS
+  ? [`-arch ${clangArch}`, macOSMinFlag].filter(Boolean).join(' ')
+  : '';
+
 // 与 CLI 同源：版本号来自当前 HEAD 的提交时间，哈希取当前提交。
 // 时间语义的版本同一天内不变化，只有哈希能区分是当天的哪一次构建，
 // 所以两者必须一起注入、一起展示。
@@ -57,7 +70,7 @@ const ldflags = [
   isWindows ? '-H windowsgui' : '',
   `-X 'main.version=${version}'`,
   `-X 'main.commitHash=${commitHash}'`,
-  isMacOS ? `-extldflags '${macOSMinFlag}'` : '',
+  isMacOS ? `-extldflags '${macOSClangFlags}'` : '',
 ]
   .filter(Boolean)
   .join(' ');
@@ -93,13 +106,14 @@ if (!isWindows) {
 // 编译与链接参数末尾（后写覆盖先写），再用 extldflags 对齐最终链接。
 if (isMacOS) {
   env.MACOSX_DEPLOYMENT_TARGET = macOSMinVersion;
-  env.CGO_CFLAGS = [env.CGO_CFLAGS, macOSMinFlag].filter(Boolean).join(' ');
-  env.CGO_LDFLAGS = [env.CGO_LDFLAGS, macOSMinFlag].filter(Boolean).join(' ');
+  env.CGO_CFLAGS = [env.CGO_CFLAGS, macOSClangFlags].filter(Boolean).join(' ');
+  env.CGO_LDFLAGS = [env.CGO_LDFLAGS, macOSClangFlags].filter(Boolean).join(' ');
 }
 
 console.log(`Building desktop ${isWindows ? 'with: ' : 'with: CGO_ENABLED=1 '}${cmd}`);
 console.log(`  version    = ${version}`);
 console.log(`  commitHash = ${commitHash}`);
+console.log(`  GOARCH     = ${targetArch}`);
 
 execSync(cmd, { cwd: serverDir, env, stdio: 'inherit' });
 
