@@ -2,7 +2,7 @@ package main
 
 // 编译期通过 -ldflags 注入，与 cmd/lansend 的用法保持一致：
 //
-//	go build -ldflags="-X 'main.version=v2026.1101.103' -X 'main.commitHash=d38a20d'"
+//	go build -ldflags="-X 'main.version=v2026.11.20' -X 'main.commitHash=d38a20d'"
 //
 // 版本号是时间语义的（YYYY.M.D），同一天多次构建完全相同，所以页面必须把
 // 哈希一起显示出来，否则没法判断用户跑的是当天的哪一版。

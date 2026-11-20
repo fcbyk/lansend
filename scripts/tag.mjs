@@ -9,7 +9,7 @@ const tag = requireVersionTag();
 
 const existing = execSync(`git tag --list "${tag}"`, { encoding: 'utf8' }).trim();
 if (existing) {
-  console.error(`标签 ${tag} 已存在。同一分钟内的多个提交会得到相同版本，请换一个提交再试。`);
+  console.error(`标签 ${tag} 已存在。同一天只发一个版本；同日重发请先删除旧标签和 Release，再重新执行 pnpm tag。`);
   process.exit(1);
 }
 

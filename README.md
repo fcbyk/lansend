@@ -87,16 +87,16 @@ pnpm build:desktop:mac
 版本号没有手写字段，唯一来源是**当前 HEAD 的提交时间**（committer date），与构建时间无关：
 
 - 时间固定按北京时间（UTC+8）换算，与构建机器的时区无关；
-- 格式 `YYYY.MMDD.HHMM`：年、`月*100+日`、`时*100+分`，计算时补零，输出时去掉前导零；
-- 例：`2026.101.0` = 1 月 1 日 00:00，`2026.111.5` = 1 月 11 日 00:05，`2026.1101.103` = 11 月 1 日 01:03；
+- 格式 `YYYY.M.D`：年、月、日，各段去前导零；
+- 例：`2026.1.1` = 2026 年 1 月 1 日，`2026.11.20` = 2026 年 11 月 20 日；
 - 同一个 commit 永远得到同一个版本，切回旧 commit 重建得到旧版本；
 - 当前 HEAD 没有 git 信息（源码 zip 等）时回退 `0.0.0`，构建不会中断；
-- 同一分钟内的多个 commit 版本相同，用短哈希区分；
+- 同一天的所有提交版本相同，用短哈希区分；同日重发请先删除旧 tag 和 Release，再重新 `pnpm tag`；
 - 时区是永久约定：改成别的时区等于改掉所有历史 commit 的版本号，已发布的标签会对不上。
 
 | 位置 | 形态 |
 |---|---|
-| CLI | `lansend -v` → `lansend 2026.1101.103 (d38a20d)` |
+| CLI | `lansend -v` → `lansend 2026.11.20 (d38a20d)` |
 | 桌面端 | 窗口页脚底部的小字，点一下复制 |
 | Windows exe | 属性 → 详细信息：文件版本 / 产品版本 |
 | macOS `.app` | `Info.plist` 的 `CFBundleShortVersionString`，哈希在 `LANSendCommit` 键 |
@@ -107,7 +107,7 @@ pnpm build:desktop:mac
 # 1. 提交代码
 git commit -am "..."
 
-# 2. 按当前 HEAD 的提交时间计算版本号并打标签
+# 2. 按当前 HEAD 的提交日期（北京时间）计算版本号并打标签
 pnpm tag
 
 # 3. 推送标签，触发 CI 发布
@@ -138,7 +138,7 @@ syso 不进仓库，有两个原因：Go 的链接器只接受一个 `.rsrc` 段
 
 ```bash
 cd server/tools/iconres
-go run . -version v2026.1101.103 -commit d38a20d -skip-assets
+go run . -version v2026.11.20 -commit d38a20d -skip-assets
 ```
 
 代价是：Windows 上直接 `go build ./desktop`（不经过构建脚本）得到的 exe 没有文件图标和版本信息，运行时窗口与托盘图标不受影响（它们走 `//go:embed` 的 icon.ico）。

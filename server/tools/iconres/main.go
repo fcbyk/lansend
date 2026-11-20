@@ -15,7 +15,7 @@
 // 「属性 → 详细信息」里。版本号是时间语义的，每天都变，所以这两个 syso 不进仓库，
 // 由 scripts/build-desktop.mjs 在每次构建前用 -skip-assets 重新生成：
 //
-//	go run . -version v2026.1101.103 -commit d38a20d -skip-assets
+//	go run . -version v2026.11.20 -commit d38a20d -skip-assets
 //
 // Go 的链接器只接受一个 .rsrc 段（多个会报 too many .rsrc sections），
 // 所以图标和版本信息只能共用一个 syso，没法拆成两份分别提交。
@@ -58,7 +58,7 @@ func main() {
 	icoOut := flag.String("ico", filepath.Join("..", "..", "desktop", "assets", "icon.ico"), "输出 ICO 路径")
 	icnsOut := flag.String("icns", filepath.Join("..", "..", "desktop", "assets", "icon.icns"), "输出 ICNS 路径")
 	sysoDir := flag.String("syso", filepath.Join("..", "..", "desktop"), "syso 输出目录")
-	ver := flag.String("version", "", "版本号（如 v2026.1101.103）；提供时把 VERSIONINFO 写进 syso")
+	ver := flag.String("version", "", "版本号（如 v2026.11.20）；提供时把 VERSIONINFO 写进 syso")
 	commit := flag.String("commit", "", "短提交哈希，写进版本资源的字符串")
 	skipAssets := flag.Bool("skip-assets", false, "只生成 syso，不重写 icon.ico / icon.icns（构建脚本用）")
 	flag.Parse()
