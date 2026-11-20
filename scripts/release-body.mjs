@@ -55,8 +55,6 @@ lines.push(
   `| Linux (x86_64) | ${asset('lansend-linux-x86_64.tar.gz')} | — |`,
   `| Linux (ARM64) | ${asset('lansend-linux-arm64.tar.gz')} | — |`,
   '',
-  `[checksums.txt](${baseUrl}/releases/download/${current}/checksums.txt)`,
-  '',
   '- macOS 桌面端要求 macOS 11 (Big Sur) 及以上；更老的系统请使用 CLI。',
   '- Linux 不提供桌面端：Wails 的 GTK 后端仍是实验状态，且托盘依赖桌面环境提供 StatusNotifier 宿主，GNOME 默认没有。',
   '- 两个桌面包都没有代码签名。macOS 首次打开会被 Gatekeeper 拦下，右键「打开」或执行 `xattr -cr LANSend.app`；Windows 会弹 SmartScreen 提示，点「更多信息 → 仍要运行」。',
