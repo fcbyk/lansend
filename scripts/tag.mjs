@@ -1,15 +1,15 @@
 import { execSync } from 'child_process';
 import { requireVersionTag } from './lib/version.mjs';
 
-// 只做一件事：按 package.json 的版本号在当前 HEAD 上打标签。
+// 只做一件事：按当前 HEAD 的提交时间计算版本号，并在该 commit 上打标签。
 //
-// 不改文件、不提交 —— 版本号由人手动改，脚本不替人做决定。
-// 缺 version 字段时 requireVersionTag 会直接抛错，不会用兜底值造一个假标签。
+// 不改文件、不提交 —— 版本号来自 commit 时间，本来就不需要任何手写字段。
+// tag 只作为发布触发器；CI 会用同一个函数从 commit 时间重新计算并校验。
 const tag = requireVersionTag();
 
 const existing = execSync(`git tag --list "${tag}"`, { encoding: 'utf8' }).trim();
 if (existing) {
-  console.error(`标签 ${tag} 已存在。同一天要发第二个版本，请先改 package.json 的 version。`);
+  console.error(`标签 ${tag} 已存在。同一分钟内的多个提交会得到相同版本，请换一个提交再试。`);
   process.exit(1);
 }
 

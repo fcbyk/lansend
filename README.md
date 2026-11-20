@@ -55,20 +55,17 @@ macOS 桌面端要求 **macOS 11 (Big Sur) 及以上**；更老的系统请使�
 # 安装前端依赖
 pnpm install
 
-# 构建前端（直接输出到 server/embeddist/dist）
-pnpm build:web
-
-# 构建壳 A（CLI，含版本信息）
+# 构建壳 A（CLI）：先构建前端并内嵌，再编译 CLI
 pnpm build:cli
 
-# 一步构建（前端 + 壳 A）
-pnpm build
+# 只构建前端（输出到 server/embeddist/dist）
+pnpm build:web
 
-# 构建壳 B（桌面端，不包含在 pnpm build 内）
+# 构建壳 B（桌面端，独立构建，不包含在 CLI 构建内）
 pnpm build:desktop
 
 # 构建 macOS .app 包（在 macOS 上执行）
-bash scripts/build-mac-desktop.sh
+pnpm build:desktop:mac
 ```
 
 桌面端界面源码在 `desktop-web/`（React + TypeScript），由 `vite.desktop.config.ts` 构建到 `server/desktop/frontend/dist`，再用 `//go:embed` 打进二进制。因此：
@@ -87,36 +84,35 @@ bash scripts/build-mac-desktop.sh
 
 #### 版本号
 
-版本号只有一个来源：根目录 `package.json` 的 `version` 字段，**手动改，不带 `v`**：
+版本号没有手写字段，唯一来源是**当前 HEAD 的提交时间**（committer date，UTC），与构建时间无关：
 
-```json
-"version": "2026.11.6"
-```
-
-所有构建脚本只读不写，`v` 前缀由脚本自动补。这样版本跟着提交走，切回旧提交重建得到的是旧版本，而不是"今天"的日期。字段缺失时（本方案落地之前的历史提交）回退 `v0.1.0`，构建不会中断。
+- 格式 `YYYY.MMDD.HHMM`：年、`月*100+日`、`时*100+分`，计算时补零，输出时去掉前导零；
+- 例：`2026.101.0` = 1 月 1 日 00:00 UTC，`2026.111.5` = 1 月 11 日 00:05 UTC，`2026.1101.103` = 11 月 1 日 01:03 UTC；
+- 同一个 commit 永远得到同一个版本，切回旧 commit 重建得到旧版本；
+- 当前 HEAD 没有 git 信息（源码 zip 等）时回退 `0.0.0`，构建不会中断；
+- 同一分钟内的多个 commit 版本相同，用短哈希区分。
 
 | 位置 | 形态 |
 |---|---|
-| CLI | `lansend -v` → `lansend 2026.11.6 (d38a20d)` |
+| CLI | `lansend -v` → `lansend 2026.1101.103 (d38a20d)` |
 | 桌面端 | 窗口页脚底部的小字，点一下复制 |
 | Windows exe | 属性 → 详细信息：文件版本 / 产品版本 |
 | macOS `.app` | `Info.plist` 的 `CFBundleShortVersionString`，哈希在 `LANSendCommit` 键 |
 
-版本同一天内不变，同一天发两次只能靠哈希区分。发布流程：
+发布流程（tag 只作触发器，不参与版本计算）：
 
 ```bash
-# 1. 改 package.json 的 version，例如 2026.11.7
-# 2. 提交
-git commit -am "release: v2026.11.7"
+# 1. 提交代码
+git commit -am "..."
 
-# 3. 在当前 HEAD 上打标签（只打标签，不改文件、不提交；缺 version 字段会报错）
+# 2. 按当前 HEAD 的提交时间计算版本号并打标签
 pnpm tag
 
-# 4. 推送标签，触发 CI 发布
+# 3. 推送标签，触发 CI 发布
 pnpm release
 ```
 
-CI 也只认 `package.json`：`ci.yml` 直接读它，`build.yml` 还会断言标签名与版本号一致，不一致当场失败，避免发布出「标签一个号、二进制另一个号」的产物。
+CI 用同一个 `scripts/lib/version.mjs` 从 commit 时间计算版本，并断言结果与标签名一致；不一致说明标签不是 `pnpm tag` 生成的，构建会直接失败。
 
 #### 图标资源
 
@@ -140,7 +136,7 @@ syso 不进仓库，有两个原因：Go 的链接器只接受一个 `.rsrc` 段
 
 ```bash
 cd server/tools/iconres
-go run . -version v2026.11.6 -commit d38a20d -skip-assets
+go run . -version v2026.1101.103 -commit d38a20d -skip-assets
 ```
 
 代价是：Windows 上直接 `go build ./desktop`（不经过构建脚本）得到的 exe 没有文件图标和版本信息，运行时窗口与托盘图标不受影响（它们走 `//go:embed` 的 icon.ico）。
@@ -188,11 +184,11 @@ lansend --help
 ## 开发
 
 ```bash
-# 同时启动 Vite 开发服务器和 Go 后端
+# 先构建 CLI，再同时启动 Vite 开发服务器和 Go 后端
 pnpm dev
 ```
 
-Vite 开发服务器会代理 API 请求到 Go 后端（默认 80 端口）。修改前端代码时自动热更新。
+Vite 开发服务器会代理 API 请求到 Go 后端（默认 80 端口）。修改前端代码时自动热更新；修改 Go 代码后需要重新构建（`pnpm build:cli`）并重启。
 
 ## 技术栈
 

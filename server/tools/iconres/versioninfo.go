@@ -11,9 +11,9 @@ import (
 // buildVersionInfo 组装写进 exe 的 VERSIONINFO，也就是「属性 → 详细信息」里那几行。
 //
 // 数值部分（FileVersion / ProductVersion 的 4 段 uint16）供系统比较和排序，必须是
-// 纯数字；哈希只能放进字符串里。所以两处字符串都写成「2026.11.6 (d38a20d)」，
-// 和界面页脚展示的是同一份信息 —— 时间语义的版本同一天内不变化，没有哈希就分不清
-// 用户跑的是当天的哪一次构建。
+// 纯数字；哈希只能放进字符串里。所以两处字符串都写成「2026.1101.103 (d38a20d)」，
+// 和界面页脚展示的是同一份信息 —— 版本精确到分钟，没有哈希就分不清
+// 用户跑的是同一分钟内的哪一次提交。
 func buildVersionInfo(ver, commit string) (version.Info, error) {
 	nums, err := parseVersionNumbers(ver)
 	if err != nil {

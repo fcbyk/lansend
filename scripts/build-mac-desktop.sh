@@ -15,7 +15,7 @@ MIN_MACOS_VERSION="${MACOSX_DEPLOYMENT_TARGET:-11.0}"
 export MACOSX_DEPLOYMENT_TARGET="${MIN_MACOS_VERSION}"
 
 # plist 里的版本必须和二进制同源：写死的话 Finder 里永远是 1.0，
-# 和页脚显示的版本对不上。版本号读自根目录 package.json（唯一来源）。
+# 和页脚显示的版本对不上。版本号来自 HEAD 的提交时间（唯一来源）。
 # 哈希只能放自定义键 —— CFBundle*Version 只接受点分数字，塞字母会被系统判为无效包。
 read -r VERSION HASH <<< "$(node --input-type=module -e 'import { readVersionTag, computeCommitHash } from "./scripts/lib/version.mjs"; console.log(readVersionTag(), computeCommitHash())')"
 SHORT_VERSION="${VERSION#v}"

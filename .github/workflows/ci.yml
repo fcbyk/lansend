@@ -59,8 +59,8 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          # 和本地构建读同一个来源，别再按构建日期现算
-          VERSION=v$(node -p "require('./package.json').version")
+          # 和本地构建读同一个来源：当前 HEAD 的提交时间（UTC）
+          VERSION=$(node scripts/print-version.mjs)
           BIN=lansend
           if [ "${{ matrix.goos }}" = "windows" ]; then BIN=lansend.exe; fi
           cd server

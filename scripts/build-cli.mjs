@@ -17,7 +17,7 @@ if (extraPaths.length) {
   process.env.PATH = extraPaths.join(delimiter) + delimiter + process.env.PATH;
 }
 
-// 版本号读自根目录 package.json，唯一来源；这里只读不写。
+// 版本号来自当前 HEAD 的提交时间（UTC），无手写字段；这里只读不写。
 const version = readVersionTag();
 const commitHash = computeCommitHash();
 

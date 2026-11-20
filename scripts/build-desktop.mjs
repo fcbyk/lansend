@@ -46,7 +46,7 @@ const isMacOS = process.platform === 'darwin';
 const macOSMinVersion = process.env.MACOSX_DEPLOYMENT_TARGET || '11.0';
 const macOSMinFlag = `-mmacosx-version-min=${macOSMinVersion}`;
 
-// 与 CLI 同源：版本号读自根目录 package.json，哈希取当前提交。
+// 与 CLI 同源：版本号来自当前 HEAD 的提交时间，哈希取当前提交。
 // 时间语义的版本同一天内不变化，只有哈希能区分是当天的哪一次构建，
 // 所以两者必须一起注入、一起展示。
 const version = readVersionTag();

@@ -63,11 +63,11 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          # 版本号唯一来源是 package.json；标签名只用来校验，两边不一致就停下，
-          # 否则会发布出「标签 v2026.11.4、二进制自称 2026.11.6」的东西。
-          VERSION=v$(node -p "require('./package.json').version")
+          # 版本号来自 HEAD 的提交时间（UTC），tag 只是发布触发器；
+          # 标签名和计算结果不一致，说明标签不是用 pnpm tag 生成的，直接失败。
+          VERSION=$(node scripts/print-version.mjs)
           if [ "${VERSION}" != "${{ github.ref_name }}" ]; then
-            echo "package.json 版本 ${VERSION} 与标签 ${{ github.ref_name }} 不一致" >&2
+            echo "commit 时间版本 ${VERSION} 与标签 ${{ github.ref_name }} 不一致" >&2
             exit 1
           fi
           BIN=lansend
@@ -134,10 +134,10 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          # 与 CLI 同一条规则：版本来自 package.json，且必须和标签一致
-          VERSION=v$(node -p "require('./package.json').version")
+          # 与 CLI 同一条规则：版本来自 HEAD 的提交时间，且必须和标签一致
+          VERSION=$(node scripts/print-version.mjs)
           if [ "${VERSION}" != "${{ github.ref_name }}" ]; then
-            echo "package.json 版本 ${VERSION} 与标签 ${{ github.ref_name }} 不一致" >&2
+            echo "commit 时间版本 ${VERSION} 与标签 ${{ github.ref_name }} 不一致" >&2
             exit 1
           fi
           ${{ matrix.script }}
