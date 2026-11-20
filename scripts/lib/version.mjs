@@ -1,17 +1,24 @@
 import { execSync } from 'child_process';
 
-// 版本号唯一来源：当前 HEAD 的提交时间（committer date，UTC），与构建时间无关。
+// 版本号唯一来源：当前 HEAD 的提交时间（committer date），与构建时间无关。
 //
 // 同一个 commit 永远得到同一个版本：今天重建两年前的 commit，得到的是两年前的
 // 时间版本，而不是"最新"版本。tag 只作发布触发器，不参与版本计算。
 //
+// 时间固定按北京时间（UTC+8，无夏令时）展示。不能用宿主本地时区：CI 跑在 UTC，
+// 本地在 +08，同一个 commit 会算出两个版本，标签和 CI 断言都会对不上。
+// 这个时区是永久约定，改了它等于改掉所有历史 commit 的版本号。
+//
 // 格式：YYYY.MMDD.HHMM —— 年、月*100+日、时*100+分。
 // 计算时各段补零，输出时去掉前导零（按整数拼接天然没有前导零）：
-//   2026.101.0      → 1 月 1 日 00:00 UTC
-//   2026.111.5      → 1 月 11 日 00:05 UTC
-//   2026.1101.103   → 11 月 1 日 01:03 UTC
+//   2026.101.0      → 1 月 1 日 00:00
+//   2026.111.5      → 1 月 11 日 00:05
+//   2026.1101.103   → 11 月 1 日 01:03
 // 三段数字同时满足 Windows PE、macOS plist 与 semver 的格式要求。
 const FALLBACK_VERSION = '0.0.0';
+
+// 固定 UTC+8，和宿主时区、CI 机器的时区都无关。
+const VERSION_TZ_OFFSET_MS = 8 * 60 * 60 * 1000;
 
 // 拿不到 git 信息（源码 zip、没有 HEAD）时返回 null。
 function readCommitEpoch() {
@@ -25,7 +32,7 @@ function readCommitEpoch() {
 }
 
 function formatVersion(epoch) {
-  const d = new Date(epoch * 1000);
+  const d = new Date(epoch * 1000 + VERSION_TZ_OFFSET_MS);
   const year = d.getUTCFullYear();
   const monthDay = (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
   const hourMinute = d.getUTCHours() * 100 + d.getUTCMinutes();

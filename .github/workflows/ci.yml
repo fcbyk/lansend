@@ -59,7 +59,7 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          # 和本地构建读同一个来源：当前 HEAD 的提交时间（UTC）
+          # 和本地构建读同一个来源：当前 HEAD 的提交时间（北京时间）
           VERSION=$(node scripts/print-version.mjs)
           BIN=lansend
           if [ "${{ matrix.goos }}" = "windows" ]; then BIN=lansend.exe; fi

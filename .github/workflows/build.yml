@@ -63,7 +63,7 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          # 版本号来自 HEAD 的提交时间（UTC），tag 只是发布触发器；
+          # 版本号来自 HEAD 的提交时间（北京时间），tag 只是发布触发器；
           # 标签名和计算结果不一致，说明标签不是用 pnpm tag 生成的，直接失败。
           VERSION=$(node scripts/print-version.mjs)
           if [ "${VERSION}" != "${{ github.ref_name }}" ]; then
