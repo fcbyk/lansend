@@ -8,6 +8,8 @@
     "build:cli": "pnpm build:web && node scripts/build-cli.mjs",
     "build:desktop": "pnpm run build:web && pnpm run build:web:desktop && node scripts/build-desktop.mjs",
     "build:desktop:mac": "pnpm run build:web && pnpm run build:web:desktop && bash scripts/build-mac-desktop.sh",
+    "build:desktop:dmg": "pnpm run build:desktop:mac && bash scripts/build-mac-dmg.sh",
+    "package:dmg": "bash scripts/build-mac-dmg.sh",
     "tag": "node scripts/tag.mjs",
     "release": "git push origin --tags"
   },
@@ -25,6 +27,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "concurrently": "^10.0.3",
+    "create-dmg": "^8.1.0",
     "globals": "^17.6.0",
     "tailwindcss": "^4.3.0",
     "typescript": "~6.0.2",
